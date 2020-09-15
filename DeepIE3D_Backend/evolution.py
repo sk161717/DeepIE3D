@@ -6,7 +6,7 @@ FOREIGN = 2
 Z_SIZE = 200
 
 
-def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
+def simple_evolution(selected_canvases, zs, G,D, novelty=False, behavioral=False, mutation_rate=1.0):
     '''
     1:1 implementation of DeepIE if not [novelty], else DeepIE with added novelty search
     '''
@@ -25,16 +25,22 @@ def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, 
             return behavioral_novelty_search([], G) if behavioral else novelty_search([])
         else:
             return [normal().tolist() for _ in range(9)]
-
+    print("1len(zs):" , len(evolved_zs))
     x = min(FOREIGN, delta)
     evolved_zs.extend([mutate(selected_zs[i], mutation_rate)
                        for i in range(len(selected_zs))])
+    print("2len(zs):",len(evolved_zs))
     if novelty:
         evolved_zs = behavioral_novelty_search(
             [], G) if behavioral else novelty_search(evolved_zs)
     else:
         evolved_zs.extend([normal().tolist() for _ in range(x)])
+    print("3len(zs):" , len(evolved_zs))
+    print(evolved_zs)
+    for i in range(len(evolved_zs)):
+        print(D.discriminate(G.generate(evolved_zs)))
     return evolved_zs
+
 
 
 def simple_crossover(population):

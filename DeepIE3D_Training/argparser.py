@@ -53,7 +53,7 @@ class Argparser:
                                 help='cube length of voxels')
         arg_parser.add_argument('--d_thresh', type=float, default=0.8,
                                 help='discriminator accuracy threshold')
-        arg_parser.add_argument('--obj', type=str, default="plane",
+        arg_parser.add_argument('--obj', type=str, default="chair",
                                 help='training dataset object category')
         arg_parser.add_argument('--labels', type=str, default="noisy",
                                 choices=["noisy", "hard", "d_hard"],
@@ -62,9 +62,9 @@ class Argparser:
                                 help='input path')
         arg_parser.add_argument('--models_path', type=str, default='models',
                                 help='path in which to save the models')
-        arg_parser.add_argument('--test_path', type=str, default='plane_g.tar',
+        arg_parser.add_argument('--test_path', type=str, default='chair_g.tar',
                                 help='path in which to fetch the test model')
-        arg_parser.add_argument('--data_dir', type=str, default='plane64_256',
+        arg_parser.add_argument('--data_dir', type=str, default='chair64_128',
                                 help='dataset load path')
         arg_parser.add_argument('--save_freq', type=int, default=200,
                                 help='To save model for every n steps')

@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_file
 from flask_compress import Compress
 from torch import Tensor
-from generate import SuperGenerator
+from generate import SuperGenerator,SuperDiscriminator
 from utils import generate_z, create_coords_from_voxels, generate_binvox_file, calculate_camera
 from evolution import mutate, crossover, simple_evolution, behavioral_novelty_search, novelty_search
 
@@ -11,6 +11,7 @@ COMPRESS = Compress()
 BEHAVIORAL = False
 APP = Flask(__name__)
 G = SuperGenerator()
+D =SuperDiscriminator()
 CAMERA_PLANE = calculate_camera(
     [G.generate(generate_z(), 'Plane') for i in range(100)])
 CAMERA_CHAIR = calculate_camera(
@@ -27,14 +28,14 @@ def add_cors(response):
     - Content-Type to be shown in headers
     - GET, POST and OPTIONS methos
     '''
-    r = request.referrer[:-1]
-    if r in ['http://localhost:8080', 'localhost:8080', 'https://localhost:8080',
-             'https://adrianwesth.dk', 'https://www.adrianwesth.dk']:
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers',
-                             'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods',
-                             'GET,POST,OPTIONS')
+    #r = request.referrer[:-1]
+    #if r in ['http://localhost:8080', 'localhost:8080', 'https://localhost:8080',
+    #         'https://adrianwesth.dk', 'https://www.adrianwesth.dk']:
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers',
+                            'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods',
+                            'GET,POST,OPTIONS')
 
     return response
 
@@ -111,14 +112,15 @@ def evolve():
     evolution_specifications = request_json['specifications']
     novelty = request_json['novelty']
     mutation_rate = request_json['mutation']
+    
 
     if 'SIMPLE' in evolution_specifications:
-        selected_canvases = []
+        selected_canvases = [] #選択したモデル
         for i in range(int(evolution_specifications[6])):
             selected_canvases.append(request_json[f'selected{i}'])
-        zs = [request_json[f'z{i}'] for i in range(9)]
+        zs = [request_json[f'z{i}'] for i in range(9)]  #長さ200
         evolved = simple_evolution(
-            selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
+            selected_canvases, zs, G,D, novelty, BEHAVIORAL, mutation_rate)
     else:
         evolution_specifications = evolution_specifications.split(',')
         for specification in evolution_specifications:
