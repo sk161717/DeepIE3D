@@ -1,5 +1,7 @@
 import random
 import torch
+import numpy as np
+from torch import Tensor
 
 # Constants
 FOREIGN = 2
@@ -35,10 +37,16 @@ def simple_evolution(selected_canvases, zs, G,D, novelty=False, behavioral=False
             [], G) if behavioral else novelty_search(evolved_zs)
     else:
         evolved_zs.extend([normal().tolist() for _ in range(x)])
-    print("3len(zs):" , len(evolved_zs))
-    print(evolved_zs)
-    for i in range(len(evolved_zs)):
-        print(D.discriminate(G.generate(evolved_zs)))
+    print("3len(zs):", len(evolved_zs))
+    e_zs_np = np.array(evolved_zs)
+    zero_np = np.zeros((23, 200))
+    e_pooled_np = np.concatenate([e_zs_np, zero_np,e_zs_np,zero_np])
+    print("size:", e_pooled_np.shape)
+    fake = torch.cat(torch.split(
+                G.g_chair(Tensor(e_pooled_np)), 64 // 2, dim=0), 1)
+    print(fake)
+    print("fake size:",fake.size())
+    print(D.discriminate(fake))
     return evolved_zs
 
 

@@ -19,7 +19,7 @@ class Argparser:
         arg_parser.add_argument('--gan_type', type=str, default="wgan-gp",
                                 choices=["dcgan", "wgan-gp"], help='type of gan to train')
         arg_parser.add_argument(
-            '--unpac', action='store_true', help='toggle PacGAN(2)')
+            '--unpac', action='store_true',default=True, help='toggle PacGAN(2)')
         arg_parser.add_argument('--epochs', type=int, default=10000,
                                 help='number of epochs to train')
         arg_parser.add_argument('--d_iter', type=int, default=5,
@@ -60,7 +60,7 @@ class Argparser:
                                 help='choose label type (noisy, hard, d-hard)')
         arg_parser.add_argument('--input_dir', type=str, default='data',
                                 help='input path')
-        arg_parser.add_argument('--models_path', type=str, default='models',
+        arg_parser.add_argument('--models_path', type=str, default='models_wgan',
                                 help='path in which to save the models')
         arg_parser.add_argument('--test_path', type=str, default='chair_g.tar',
                                 help='path in which to fetch the test model')

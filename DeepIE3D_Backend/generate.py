@@ -10,7 +10,6 @@ class SuperGenerator():
 
         self.g_plane = self.initialize_model('Plane').eval()
         self.g_chair = self.initialize_model('Chair').eval()
-        self.d_chair = self.initialize_model_d.eval()
 
     def initialize_model(self, model_type):
         '''
@@ -33,7 +32,7 @@ class SuperGenerator():
         
 class SuperDiscriminator():
     def __init__(self):
-        self.d_chair = self.initialize_model.eval()
+        self.d_chair = self.initialize_model().eval()
     
     def initialize_model(self):
         d = Discriminator(False, 64, 0.3, 'wgan-gp')
