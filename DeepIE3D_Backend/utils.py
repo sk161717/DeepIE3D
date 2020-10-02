@@ -1,5 +1,6 @@
-import io
+import io,sys
 from torch import Tensor
+import numpy as np
 import torch
 import binvox_rw
 
@@ -26,6 +27,47 @@ def create_coords_from_voxels(voxels):
     nonzero = torch.nonzero(voxels >= 0.5)
     return nonzero.tolist()
 
+def create_coords_from_voxels_generate(voxels):
+    nonzero = torch.nonzero(voxels >= 0.5)
+    return eliminate_isolated(nonzero).tolist()
+
+def eliminate_isolated(coords):
+    coords_arr = [[[0 for k in range(64)] for j in range(64)] for i in range(64)]
+    coords_group = [[[-1 for k in range(64)] for j in range(64)] for i in range(64)]
+    group_counts=[]
+    group_id = 0
+    sys.setrecursionlimit(10000)
+    for i in range(coords.shape[0]):
+        coords_arr[coords[i][0]][coords[i][1]][coords[i][2]] = 1
+    for i in range(64):
+        for j in range(64):
+            for k in range(64):
+                if coords_group[i][j][k] == -1 and coords_arr[i][j][k]==1:
+                    group_counts.append(DFS(coords_arr, coords_group, group_id, i, j, k, 0))
+                    group_id += 1
+    coords_np=np.empty([0,3])
+    for i in range(64):
+        for j in range(64):
+            for k in range(64):
+                if group_counts[coords_group[i][j][k]] < 20 and coords_arr[i][j][k] == 1:
+                    coords_arr[i][j][k] = 0
+                if coords_arr[i][j][k] == 1:
+                    coords_np=np.append(coords_np,[[i, j, k]],axis=0)
+    coords_tensor=torch.tensor(coords_np)
+    return coords_tensor
+                    
+    
+                        
+def DFS(coords_arr, coords_group, group_id, i, j, k,group_count):
+    coords_group[i][j][k] = group_id
+    group_count += 1
+    for a in range(i-1,i+2):
+        for b in range(j-1,j+2):
+            for c in range(k - 1, k + 2):     
+                if 0 <= a < 64 and 0 <= b < 64 and 0 <= c < 64 and coords_arr[a][b][c] == 1 and coords_group[a][b][c] == -1:
+                    group_count=DFS(coords_arr, coords_group, group_id, a, b, c,group_count)
+    return group_count
+                
 
 def calculate_camera(voxelss):
     """

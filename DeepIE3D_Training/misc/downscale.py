@@ -1,7 +1,7 @@
 import binvox_rw
 import torch
 import numpy as np
-import utils
+#import utils
 import os
 from multiprocessing.dummy import Pool as ThreadPool
 

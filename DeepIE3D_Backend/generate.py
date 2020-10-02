@@ -18,7 +18,7 @@ class SuperGenerator():
         g = Generator(200, 64)
         g_model = DataParallel(g)
         g_checkpoint = load('plane_generator.tar' if model_type ==
-                            'Plane' else 'chair_generator.tar', map_location=DEVICE)
+                            'Plane' else 'bench_g_5000.tar', map_location=DEVICE)
         g_model.load_state_dict(g_checkpoint["model_state_dict"])
         return g_model
 
@@ -35,7 +35,7 @@ class SuperDiscriminator():
         self.d_chair = self.initialize_model().eval()
     
     def initialize_model(self):
-        d = Discriminator(False, 64, 0.3, 'wgan-gp')
+        d = Discriminator(True, 64, 0.3, 'wgan-gp')
         d_model = DataParallel(d)
         d_checkpoint = load('chair_discriminator.tar', map_location=DEVICE)
         d_model.load_state_dict(d_checkpoint["model_state_dict"])
