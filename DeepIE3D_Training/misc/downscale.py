@@ -1,7 +1,7 @@
 import binvox_rw
 import torch
 import numpy as np
-import utils
+#import utils
 import os
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -57,5 +57,5 @@ def count_majority(x, y, z):
     v4 = voxels[x+1][y+1][z]
     v5 = voxels[x+1][y][z+1]
     v6 = voxels[x][y+1][z+1]
-    v7 = voxels[x+1][y+1][z+1]
+    v7 = voxels[x + 1][y + 1][z + 1]
     scaled_array[x//2][y//2][z//2] = int(list([v0, v1, v2, v3, v4, v5, v6, v7]).count(True) >= 4)

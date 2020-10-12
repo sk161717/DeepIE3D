@@ -16,7 +16,7 @@ class Argparser:
         """
         arg_parser = argparse.ArgumentParser()
 
-        arg_parser.add_argument('--gan_type', type=str, default="wgan-gp",
+        arg_parser.add_argument('--gan_type', type=str, default="dcgan",
                                 choices=["dcgan", "wgan-gp"], help='type of gan to train')
         arg_parser.add_argument(
             '--unpac', action='store_true',default=True, help='toggle PacGAN(2)')
@@ -53,20 +53,20 @@ class Argparser:
                                 help='cube length of voxels')
         arg_parser.add_argument('--d_thresh', type=float, default=0.8,
                                 help='discriminator accuracy threshold')
-        arg_parser.add_argument('--obj', type=str, default="chair",
+        arg_parser.add_argument('--obj', type=str, default="bench",
                                 help='training dataset object category')
         arg_parser.add_argument('--labels', type=str, default="noisy",
                                 choices=["noisy", "hard", "d_hard"],
                                 help='choose label type (noisy, hard, d-hard)')
         arg_parser.add_argument('--input_dir', type=str, default='data',
                                 help='input path')
-        arg_parser.add_argument('--models_path', type=str, default='models_wgan',
+        arg_parser.add_argument('--models_path', type=str, default='models_dcgan_bench',
                                 help='path in which to save the models')
-        arg_parser.add_argument('--test_path', type=str, default='chair_g.tar',
+        arg_parser.add_argument('--test_path', type=str, default='bench_g.tar',
                                 help='path in which to fetch the test model')
-        arg_parser.add_argument('--data_dir', type=str, default='chair64_128',
+        arg_parser.add_argument('--data_dir', type=str, default='bench64_256',
                                 help='dataset load path')
-        arg_parser.add_argument('--save_freq', type=int, default=200,
+        arg_parser.add_argument('--save_freq', type=int, default=500,
                                 help='To save model for every n steps')
         arg_parser.add_argument('--device', type=str,
                                 default="cuda" if torch.cuda.is_available() else "cpu",
