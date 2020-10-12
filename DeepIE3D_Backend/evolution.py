@@ -38,15 +38,13 @@ def simple_evolution(selected_canvases, zs, G,D, novelty=False, behavioral=False
     else:
         evolved_zs.extend([normal().tolist() for _ in range(x)])
     print("3len(zs):", len(evolved_zs))
-    e_zs_np = np.array(evolved_zs)
-    zero_np = np.zeros((23, 200))
-    e_pooled_np = np.concatenate([e_zs_np, zero_np,e_zs_np,zero_np])
-    print("size:", e_pooled_np.shape)
-    fake = torch.cat(torch.split(
-                G.g_chair(Tensor(e_pooled_np)), 64 // 2, dim=0), 1)
-    print(fake)
+    #e_zs_np = np.array(evolved_zs)
+    #zero_np = np.zeros((55, 200))
+    #e_pooled_np = np.concatenate([e_zs_np, zero_np,e_zs_np,zero_np])
+    #print("size:", e_pooled_np.shape)
+    '''fake = G.g_chair(Tensor(e_zs_np))
     print("fake size:",fake.size())
-    print(D.discriminate(fake))
+    print(D.discriminate(fake))'''
     return evolved_zs
 
 

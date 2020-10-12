@@ -11,12 +11,21 @@ def create(model_file, data_path, output_path):
     """
     Downscales voxel 3D model from 128 voxels to 64 voxels
     """
+<<<<<<< HEAD
     try:
         if model_file.endswith(".solid.binvox"):
             print(model_file)
             scale_n_times((f'{data_path}{model_file}'), (f'{output_path}{model_file}'), 1, 128)
     except:
         print(f'SomeThing went wrong with file: {model_file}')
+=======
+    #try:
+    if model_file.endswith(".binvox"):
+        print(model_file)
+        scale_n_times((f'{data_path}{model_file}'), (f'{output_path}{model_file}'), 1, 256)
+    #except:
+        #print(f'SomeThing went wrong with file: {model_file}')
+>>>>>>> d3039d504971568e81b3a2b3d5d0a93cf4ecaad4
 
 
 data_path = sys.argv[1]

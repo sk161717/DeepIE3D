@@ -35,7 +35,7 @@ class SuperDiscriminator():
         self.d_chair = self.initialize_model().eval()
     
     def initialize_model(self):
-        d = Discriminator(False, 64, 0.3, 'wgan-gp')
+        d = Discriminator(True, 64, 0.3, 'wgan-gp')
         d_model = DataParallel(d)
         d_checkpoint = load('chair_discriminator.tar', map_location=DEVICE)
         d_model.load_state_dict(d_checkpoint["model_state_dict"])

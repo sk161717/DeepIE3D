@@ -60,7 +60,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         self.layer1 = nn.Sequential(
-            nn.Conv3d(1 if unpac else 2, cube_len, kernel_size=4,
+            nn.Conv3d(1 if unpac else 2, cube_len, kernel_size=4 ,
                       stride=2, padding=(1, 1, 1)),
             nn.LeakyReLU(leak_value)
         )

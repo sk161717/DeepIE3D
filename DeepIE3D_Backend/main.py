@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, send_file
 from flask_compress import Compress
 from torch import Tensor
 from generate import SuperGenerator,SuperDiscriminator
-from utils import generate_z, create_coords_from_voxels, generate_binvox_file, calculate_camera
+from utils import generate_z, create_coords_from_voxels,create_coords_from_voxels_generate, generate_binvox_file, calculate_camera
 from evolution import mutate, crossover, simple_evolution, behavioral_novelty_search, novelty_search
 
 
