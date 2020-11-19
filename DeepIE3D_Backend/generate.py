@@ -29,7 +29,8 @@ class SuperGenerator():
         '''
         with set_grad_enabled(False):
             return self.g_plane(z).view(64, 64, 64) if model_type == 'Plane' else self.g_chair(z).view(64, 64, 64)
-        
+
+''' 
 class SuperDiscriminator():
     def __init__(self):
         self.d_chair = self.initialize_model().eval()
@@ -44,3 +45,4 @@ class SuperDiscriminator():
     def discriminate(self, fake):
         with set_grad_enabled(False):
             return self.d_chair(fake)
+'''

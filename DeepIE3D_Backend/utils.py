@@ -5,7 +5,7 @@ import torch
 import binvox_rw
 
 
-def generate_z(z_size=200, dis='norm1', seed=None):
+def generate_z(counter=0,z_size=200, dis='norm1',seed=None):
     """
     Generates a latent vector with a given distribution.
     Can be seeeded for test
@@ -13,7 +13,16 @@ def generate_z(z_size=200, dis='norm1', seed=None):
     if not seed is None:
         torch.manual_seed(seed)
     if dis == 'norm1':
-        return Tensor(z_size).normal_(0.0, 1.0)
+        z=Tensor(z_size).normal_(0.0, 1.0)
+        '''
+        with open("z_counter.txt",mode='r+') as f:
+            index=int(f.read())  
+            z[0]=(index%9)*0.2-1
+            print(index)
+            f.write(str(index+1))
+            '''
+        return z
+        
     elif dis == 'norm033':
         return Tensor(z_size).normal_(0.0, 0.33)
     elif dis == 'uni':
@@ -28,6 +37,7 @@ def create_coords_from_voxels(voxels):
     return nonzero.tolist()
 
 def create_coords_from_voxels_generate(voxels):
+    sys.setrecursionlimit(100000)
     nonzero = torch.nonzero(voxels >= 0.5)
     return eliminate_isolated(nonzero).tolist()
 
@@ -36,7 +46,6 @@ def eliminate_isolated(coords):
     coords_group = [[[-1 for k in range(64)] for j in range(64)] for i in range(64)]
     group_counts=[]
     group_id = 0
-    sys.setrecursionlimit(10000)
     for i in range(coords.shape[0]):
         coords_arr[coords[i][0]][coords[i][1]][coords[i][2]] = 1
     for i in range(64):
@@ -49,9 +58,9 @@ def eliminate_isolated(coords):
     for i in range(64):
         for j in range(64):
             for k in range(64):
-                if group_counts[coords_group[i][j][k]] < 20 and coords_arr[i][j][k] == 1:
+                if group_counts[coords_group[i][j][k]] < 30 and coords_arr[i][j][k] == 1:
                     coords_arr[i][j][k] = 0
-                if coords_arr[i][j][k] == 1:
+                if coords_arr[i][j][k] == 1: 
                     coords_np=np.append(coords_np,[[i, j, k]],axis=0)
     coords_tensor=torch.tensor(coords_np)
     return coords_tensor
@@ -59,11 +68,12 @@ def eliminate_isolated(coords):
     
                         
 def DFS(coords_arr, coords_group, group_id, i, j, k,group_count):
+    search_area=1
     coords_group[i][j][k] = group_id
     group_count += 1
-    for a in range(i-1,i+2):
-        for b in range(j-1,j+2):
-            for c in range(k - 1, k + 2):     
+    for a in range(i-search_area,i+search_area+1):
+        for b in range(j-search_area,j+search_area+1):
+            for c in range(k - search_area, k + search_area):     
                 if 0 <= a < 64 and 0 <= b < 64 and 0 <= c < 64 and coords_arr[a][b][c] == 1 and coords_group[a][b][c] == -1:
                     group_count=DFS(coords_arr, coords_group, group_id, a, b, c,group_count)
     return group_count

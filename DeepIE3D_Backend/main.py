@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_file
 from flask_compress import Compress
 from torch import Tensor
-from generate import SuperGenerator,SuperDiscriminator
+from generate import SuperGenerator
 from utils import generate_z, create_coords_from_voxels,create_coords_from_voxels_generate, generate_binvox_file, calculate_camera
 from evolution import mutate, crossover, simple_evolution, behavioral_novelty_search, novelty_search
 
@@ -11,7 +11,6 @@ COMPRESS = Compress()
 BEHAVIORAL = False
 APP = Flask(__name__)
 G = SuperGenerator()
-D =SuperDiscriminator()
 CAMERA_PLANE = calculate_camera(
     [G.generate(generate_z(), 'Plane') for i in range(100)])
 CAMERA_CHAIR = calculate_camera(
@@ -51,7 +50,7 @@ def initialize_single():
     body = {}
     z = generate_z()
     voxels = G.generate(z, model_type)
-    coords = create_coords_from_voxels(voxels)
+    coords = create_coords_from_voxels_generate(voxels)
     body['z'] = z.tolist()
     body['coords'] = coords
     body['camera'] = CAMERA_PLANE if model_type == 'Plane' else CAMERA_CHAIR
@@ -70,7 +69,7 @@ def generate_single():
     model_type = request.get_json()['model_type']
     z = request.get_json()['z']
     voxels = G.generate(Tensor(z), model_type)
-    coords = create_coords_from_voxels(voxels)
+    coords = create_coords_from_voxels_generate(voxels)
     body['coords'] = coords
     body['camera'] = CAMERA_PLANE if model_type == 'Plane' else CAMERA_CHAIR
 
@@ -120,7 +119,7 @@ def evolve():
             selected_canvases.append(request_json[f'selected{i}'])
         zs = [request_json[f'z{i}'] for i in range(9)]  #長さ200
         evolved = simple_evolution(
-            selected_canvases, zs, G,D, novelty, BEHAVIORAL, mutation_rate)
+            selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
     else:
         evolution_specifications = evolution_specifications.split(',')
         for specification in evolution_specifications:

@@ -8,7 +8,7 @@ FOREIGN = 2
 Z_SIZE = 200
 
 
-def simple_evolution(selected_canvases, zs, G,D, novelty=False, behavioral=False, mutation_rate=1.0):
+def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
     '''
     1:1 implementation of DeepIE if not [novelty], else DeepIE with added novelty search
     '''
@@ -149,7 +149,7 @@ def behavioral_novelty_search(zs, G, n=10):
     if not zs:
         zs.append(normal().tolist())
     for z in zs:
-        models.append(torch.round(G.generate(torch.Tensor(z), 'Plane')))
+        models.append(torch.round(G.generate(torch.Tensor(z), 'Chair')))
     while len(zs) < 9:
         n_zs, n_models = generate_models(G, n)
         similarity = 100
@@ -160,7 +160,7 @@ def behavioral_novelty_search(zs, G, n=10):
                 similarity = temp_similarity
                 z_index = index
         zs.append(n_zs[z_index].tolist())
-        models.append(torch.round(G.generate(n_zs[z_index], 'Plane')))
+        models.append(torch.round(G.generate(n_zs[z_index], 'Chair')))
     return zs
 
 
@@ -169,7 +169,7 @@ def generate_models(G, n):
     Generates [n] z vectors and [n] 3D models
     '''
     zs = [normal() for _ in range(n)]
-    models = [torch.round(G.generate(zs[i], 'Plane')) for i in range(n)]
+    models = [torch.round(G.generate(zs[i], 'Chair')) for i in range(n)]
     return zs, models
 
 
