@@ -132,3 +132,16 @@ def generate_binvox_file(voxels):
     model.write(output)
     output.seek(0)
     return output
+
+def slide(voxels,step):
+    m=64
+    voxels_slide= [[[False for k in range(m)] for j in range(m)] for i in range(m)]
+    for i in range(0,m):
+        for j in range(0,m):
+            for k in range(0,m):
+                if voxels[i][j][k]==True:
+                    if 0<=i+step<m and 0<=j+step<m and 0<=k+step<m:
+                        voxels_slide[i+step][j+step][k+step]=True
+                    else:
+                        print("slide over the range")
+    return voxels_slide

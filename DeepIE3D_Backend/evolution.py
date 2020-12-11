@@ -85,10 +85,28 @@ def mutate(individual, mutation_rate=1.0):
     Mutate an individual
     '''
     mutation = benoulli().tolist()
-    noise = normal(mutation_rate).tolist()
+    print(mutation)
+    noise = normal(mutation_rate).tolist()#mutation_rate..分散。デフォルト->1.0は標準正規分布
     mutations = []
     for i in range(Z_SIZE):
-        value = individual[i] + mutation[i] * noise[i]
+        value = individual[i] + mutation[i] * noise[i]  #value=N(0,1)+(0,1)*N(0,1)
+        if value > 5.0:
+            value = 4.99
+        if value < -5.0:
+            value = -4.99
+        mutations.append(value)
+
+    return mutations
+
+def mutate_mask(individual,mask, mutation_rate=1.0):
+    '''
+    Mutate an individual
+    '''
+   
+    noise = normal(mutation_rate).tolist()#mutation_rate..分散。デフォルト->1.0は標準正規分布
+    mutations = []
+    for i in range(Z_SIZE):
+        value = individual[i] + mask[i] * noise[i]  #value=N(0,1)+(0,1)*N(0,1)
         if value > 5.0:
             value = 4.99
         if value < -5.0:
