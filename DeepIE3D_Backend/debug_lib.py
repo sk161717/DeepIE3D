@@ -11,6 +11,7 @@ import make_graph_nx
 import math
 import random
 import csv
+import torch.nn as nn
 from IPython.display import SVG, display
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 from generate import SuperGenerator
@@ -40,5 +41,9 @@ def load_file_data(container,n):
 voxels=[]
 n=2
 load_file_data(voxels,n)
-K,trimed_voxels,G=WeisfeilerLehman(voxels,n,3)
-print(K)
+#K,trimed_voxels,G=WeisfeilerLehman(voxels,n,3)
+#print(K)
+input_=torch.randn(1,1,64,64,64)
+m=nn.MaxPool3d(2,stride=2)
+output=m(input_)
+print("OK")
