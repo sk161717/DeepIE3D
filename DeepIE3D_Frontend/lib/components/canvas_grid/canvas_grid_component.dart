@@ -85,7 +85,7 @@ class CanvasGridComponent implements AfterViewInit {
 
   @override
   Future<void> ngAfterViewInit() async {
-    unawaited(coreService.initializeDeepIE("Plane"));
+    unawaited(coreService.initializeDeepIE("Chair"));
   }
 
   /// Button trigger for downloading canvas [id] as a .binvox file

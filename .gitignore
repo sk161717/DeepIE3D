@@ -1,6 +1,7 @@
 /DeepIE3D_Training/models*/
 /DeepIE3D_Training/data/
 /Binvox/
+/DeepIE3D_Backend/kmeans_pytorch/
 ShapeNetCore.v2.zip
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,12 +1,139 @@
 import random
 import torch
 import numpy as np
+import config as cfg
+import math
+import grakel
+import binvox_rw
+from utils import generate_z
 from torch import Tensor
+from make_cluster_graph_nx import convert_sparse_to_graph
+from operator import itemgetter
+from sklearn.cluster import KMeans
 
 # Constants
 FOREIGN = 2
 Z_SIZE = 200
 
+class Evolution():
+    def __init__(self):
+        self.past_graphs=[]
+        self.past_select=[]
+
+
+    def WL_evolution(self,selected_canvases, zs,G, novelty=False, behavioral=False, mutation_rate=1.0):
+        if len(selected_canvases)==0:
+            return simple_evolution(selected_canvases, zs,G)
+        selected_zs,candidate_zs = [], []
+        selected_voxels,proposed_voxels,candiate_voxels=[],[],[]
+
+        for i in range(9):
+            #proposed_voxels.append(G.generate(torch.Tensor(zs[i]), cfg.model))
+            if i in selected_canvases:
+                self.past_select.append(1)
+                selected_zs.append(zs[i])
+                selected_voxels.append(G.generate(torch.Tensor(zs[i]), cfg.model))
+            else:
+                self.past_select.append(0)
+        
+        generate_candidate(selected_zs,candidate_zs,candiate_voxels,mutation_rate,G)
+    
+        selected_graphs=cluster_graph(selected_voxels)
+        candidate_graphs=cluster_graph(candiate_voxels)
+        
+        #self.past_graphs+=selected_graphs
+        #G=candidate_graphs+self.past_graphs
+        G=candidate_graphs+selected_graphs
+
+        G_grakel=grakel.graph_from_networkx(G, node_labels_tag='label')
+        gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
+        K,base_kernel=gk.fit_transform(G_grakel)
+        print(K)
+
+        evolved_zs=[]
+        fitnesses=self.predict_fitness2(K)
+        tuple_list=list(enumerate(fitnesses))
+        sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
+        print(sort_tuple)
+
+        for i in range(9-FOREIGN):
+            evolved_zs.append(candidate_zs[sort_tuple[i][0]])
+
+        evolved_zs.extend([normal().tolist() for _ in range(FOREIGN)])
+        
+        for i in range(len(candiate_voxels)):
+            make_binvox(candiate_voxels[sort_tuple[i][0]],str(i)+'th good')
+        return evolved_zs
+
+    def predict_fitness(self,K):
+        fitnesses=[]
+        for i in range(cfg.candidate):
+            similarity_array=K[i][cfg.candidate:]
+            fitness=0
+            n=len(similarity_array)
+            for k in range(n):
+                if self.past_select[k]==1:
+                    fitness+=cfg.selected(similarity_array[k])
+                else:
+                    fitness+=cfg.unselected(similarity_array[k])
+            fitness=fitness/(n*np.sum(similarity_array))
+            fitnesses.append(fitness)
+        return fitnesses
+
+    def predict_fitness2(self,K):
+        fitnesses=[]
+        for i in range(cfg.candidate):
+            similarity_array=K[i][cfg.candidate:]
+            fitness=0
+            n=len(similarity_array)
+            fitnesses.append(np.amax(similarity_array))
+            print('n:',n,' sim_array:',similarity_array)
+        return fitnesses
+    
+def generate_candidate(selected_zs,candidate_zs,candidate_voxels,mutation_rate,G):
+    if len(selected_zs)>=2 :
+        candidate_zs.append(selected_zs[0])
+        candidate_zs.extend([mutate(selected_zs[i], mutation_rate)
+                    for i in range(len(selected_zs))])
+        candidate_zs.extend([mutate(simple_crossover(selected_zs), mutation_rate)
+                        for _ in range(cfg.candidate-len(selected_zs)-1)])
+    elif len(selected_zs)==1:
+        candidate_zs.append(selected_zs[0])
+        candidate_zs.append(mutate(selected_zs[0], mutation_rate))
+        candidate_zs.extend([crossover_with_random(selected_zs[0])
+                        for _ in range(cfg.candidate-len(selected_zs)-1)])
+    else:
+        candidate_zs.extend([normal().tolist() for _ in range(cfg.candidate)])
+    candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(cfg.candidate)])
+    return
+
+
+
+def cluster_graph(voxels):
+    graphs=[]
+    for i in range(len(voxels)):
+        nonzero=torch.nonzero(voxels[i]>=0.5)
+        count=torch.count_nonzero(nonzero)
+        index=nonzero.to('cpu').detach().numpy()
+        num_clusters=int(cfg.num_clusters*math.sqrt(count/cfg.std_num))
+        km = KMeans(n_clusters=num_clusters,
+            init='random',
+            n_init=2,
+            max_iter=10,
+            tol=1e-04,
+            random_state=0
+            )
+        km.fit_predict(index)
+        cluster_centers=km.cluster_centers_
+        graph=convert_sparse_to_graph(cluster_centers,np.array(cfg.center))
+        graphs.append(graph)
+    return graphs
+        
+def make_binvox(data,filename):
+    nonzero=torch.nonzero(data>=0.5)
+    dense_data=binvox_rw.sparse_to_dense(nonzero.to('cpu').detach().numpy().T,[64,64,64])
+    voxels=binvox_rw.Voxels(dense_data,[64,64,64], [0,0,0], 1, 'xyz')
+    voxels.write('../DeepIE3D_Backend/made/'+filename+cfg.model+'.binvox')
 
 def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
     '''
@@ -21,7 +148,7 @@ def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, 
     x = max(0, delta - FOREIGN)
     if selected_zs:
         evolved_zs.extend([mutate(simple_crossover(selected_zs), mutation_rate)
-                           for _ in range(x)])
+                        for _ in range(x)])
     else:
         if novelty:
             return behavioral_novelty_search([], G) if behavioral else novelty_search([])
@@ -30,7 +157,7 @@ def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, 
     print("1len(zs):" , len(evolved_zs))
     x = min(FOREIGN, delta)
     evolved_zs.extend([mutate(selected_zs[i], mutation_rate)
-                       for i in range(len(selected_zs))])
+                    for i in range(len(selected_zs))])
     print("2len(zs):",len(evolved_zs))
     if novelty:
         evolved_zs = behavioral_novelty_search(
@@ -58,19 +185,32 @@ def simple_crossover(population):
     return crossover(a, b)
 
 
-def crossover(a, b):
+def crossover(a, b):         #[-2.420189619064331, 1.28584885597229,....]
     '''
     Crossover two genes
     '''
     mask = benoulli().tolist()
     return [mask[i] * a[i] + (1 - mask[i]) * b[i] for i in range(Z_SIZE)]
 
+def mirror_crossover(a,b):
+    mask=benoulli().tolist()
+    return [mask[i] * a[i] + (1 - mask[i]) * b[i] for i in range(Z_SIZE)],[mask[i] * b[i] + (1 - mask[i]) * a[i] for i in range(Z_SIZE)]
+
+def crossover_with_random(a):
+    random_z=generate_z().tolist()
+    mask=benoulli().tolist()
+    return [mask[i] * a[i] + (1 - mask[i]) * random_z[i] for i in range(Z_SIZE)]
+
+def mirror_crossover_with_random(a):
+    random_z=generate_z().tolist()
+    mask=benoulli().tolist()
+    return [mask[i] * a[i] + (1 - mask[i]) * random_z[i] for i in range(Z_SIZE)],[mask[i] * random_z[i] + (1 - mask[i]) * a[i] for i in range(Z_SIZE)]
 
 def benoulli():
     '''
     The Benoulli distribution
     '''
-    return torch.Tensor(Z_SIZE).bernoulli_(0.5)
+    return torch.Tensor(Z_SIZE).bernoulli_(0.5)  #tensor([1., 1., 1., 0., 0., 1., 1., 0., 1.,..... 0., 0., 0., 1., 1., 1., 0., 1., 0.,])
 
 
 def normal(mutation_rate=1.0):
@@ -85,7 +225,6 @@ def mutate(individual, mutation_rate=1.0):
     Mutate an individual
     '''
     mutation = benoulli().tolist()
-    print(mutation)
     noise = normal(mutation_rate).tolist()#mutation_rate..分散。デフォルト->1.0は標準正規分布
     mutations = []
     for i in range(Z_SIZE):
@@ -102,7 +241,7 @@ def mutate_mask(individual,mask, mutation_rate=1.0):
     '''
     Mutate an individual
     '''
-   
+
     noise = normal(mutation_rate).tolist()#mutation_rate..分散。デフォルト->1.0は標準正規分布
     mutations = []
     for i in range(Z_SIZE):
@@ -178,7 +317,7 @@ def behavioral_novelty_search(zs, G, n=10):
                 similarity = temp_similarity
                 z_index = index
         zs.append(n_zs[z_index].tolist())
-        models.append(torch.round(G.generate(n_zs[z_index], 'Chair')))
+        models.append(torch.round(G.generate(n_zs[z_index], cfg.model)))
     return zs
 
 
@@ -187,7 +326,7 @@ def generate_models(G, n):
     Generates [n] z vectors and [n] 3D models
     '''
     zs = [normal() for _ in range(n)]
-    models = [torch.round(G.generate(zs[i], 'Chair')) for i in range(n)]
+    models = [torch.round(G.generate(zs[i], cfg.model)) for i in range(n)]
     return zs, models
 
 

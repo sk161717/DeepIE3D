@@ -33,7 +33,7 @@ def create_coords_from_voxels(voxels):
     """
     Creates a nonzero lsit of coords from voxels
     """
-    nonzero = torch.nonzero(voxels >= 0.5)
+    nonzero = torch.nonzero(voxels >= 0.5)   #index list
     return nonzero.tolist()
 
 def create_coords_from_voxels_generate(voxels):

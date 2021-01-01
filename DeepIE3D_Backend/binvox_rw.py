@@ -142,7 +142,7 @@ def dense_to_sparse(voxel_data, dtype=np.int):
     return np.asarray(np.nonzero(voxel_data), dtype)
 
 
-def sparse_to_dense(voxel_data, dims, dtype=np.bool):
+def sparse_to_dense(voxel_data, dims, dtype=np.bool):   #3*N to 64*64*64   dims=[64,64,64]
     if voxel_data.ndim != 2 or voxel_data.shape[0] != 3:
         raise ValueError('voxel_data is wrong shape; should be 3xN array.')
     if np.isscalar(dims):
