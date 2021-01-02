@@ -80,7 +80,7 @@ class EvolutionService {
   ///
   /// This is sent to the server to perform the desired evolutions
   String createEvolutionSpecifications(List<EvolutionChip> evolutionChips,
-      List<int> selectedCanvases, bool advancedMode) {
+      List<int> selectedCanvases, List<int> selectedNGs, bool advancedMode) {
     StringBuffer evolutionSpecifications = StringBuffer();
 
     if (!advancedMode) {

@@ -109,6 +109,7 @@ def evolve():
     '''
     evolved, body = [], {}
     request_json = request.get_json()
+    print(request_json)
     evolution_specifications = request_json['specifications']
     novelty = request_json['novelty']
     mutation_rate = request_json['mutation']

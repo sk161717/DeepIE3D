@@ -66,11 +66,11 @@ class HttpService {
 
   /// Evolves all the Z vectors based on the desired evolutions configured by the user if any
   Future<void> evolve(String evolutionSpecifications, List<List<double>> zs,
-      List<int> selectedCanvases, bool novelty, double mutationRate) async {
+      List<int> selectedCanvases, List<int> selectedNGs, bool novelty, double mutationRate) async {
     Map<String, dynamic> jsonBody = Map();
 
     jsonBody["specifications"] =
-        evolutionSpecifications + selectedCanvases.length.toString();
+        evolutionSpecifications + selectedCanvases.length.toString() +selectedNGs.length.toString();
     jsonBody["novelty"] = novelty;
     jsonBody["mutation"] = mutationRate;
 
@@ -81,6 +81,11 @@ class HttpService {
     for (int i = 0; i < selectedCanvases.length; i++) {
       jsonBody["selected${i}"] = selectedCanvases[i];
     }
+    
+    for (int i = 0; i < selectedNGs.length; i++) {
+      jsonBody["NG${i}"] = selectedNGs[i];
+    }
+    
 
     Response response = await BrowserClient().post(
       Uri.parse("${_SERVER_URL}/evolve/"),

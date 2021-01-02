@@ -15,6 +15,7 @@ class CoreService {
   final EvolutionService evolutionService;
   final List<EvolutionChip> evolutionChips = [];
   final List<int> selectedCanvases = [];
+  final List<int> selectedNGs = [];
   final List<Icon> selectedIcons =
       List.generate(9, (_) => Icon("favorite_border"));
   final List<String> selectedColors = List.generate(9, (_) => "black");
@@ -101,12 +102,14 @@ class CoreService {
     isLoading = true;
     iteration++;
 
+    selectedNGs.add(0);
+
     String evolutionSpecifications =
         evolutionService.createEvolutionSpecifications(
-            evolutionChips, selectedCanvases, advancedMode);
+            evolutionChips, selectedCanvases, selectedNGs, advancedMode);
     List<List<double>> zs = evolutionService.getZs();
     Future<void> futureEvolution = _httpService.evolve(
-        evolutionSpecifications, zs, selectedCanvases, _novelty, mutationRate);
+        evolutionSpecifications, zs, selectedCanvases,  selectedNGs , _novelty, mutationRate); ///add NG
 
     unawaited(_webglService.reassembleCanvases());
     List<CanvasElement> canvases = querySelectorAll('canvas');
@@ -122,6 +125,7 @@ class CoreService {
     evolutionChips.clear();
     canvasEvolutions.clear();
     selectedCanvases.clear();
+    selectedNGs.clear();
     selectedColors.fillRange(0, 9, "black");
     selectedIcons.fillRange(0, 9, Icon("favorite_border"));
 
