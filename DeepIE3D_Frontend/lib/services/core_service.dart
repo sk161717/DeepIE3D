@@ -18,7 +18,10 @@ class CoreService {
   final List<int> selectedNGs = [];
   final List<Icon> selectedIcons =
       List.generate(9, (_) => Icon("favorite_border"));
+  final List<Icon> NGIcons =
+      List.generate(9, (_) => Icon("favorite_border"));
   final List<String> selectedColors = List.generate(9, (_) => "black");
+  final List<String> NGColors = List.generate(9, (_) => "black");
   final Map<int, List<EvolutionChip>> canvasEvolutions = Map();
   String message = "INITIALIZING MODELS";
   bool _isLoading = true;
@@ -46,6 +49,17 @@ class CoreService {
     } else {
       selectedColors[i] = "black";
       selectedIcons[i] = Icon("favorite_border");
+    }
+  }
+
+  void toggleNGs(int i){
+    if (!selectedNGs.remove(i)) {
+      NGColors[i] = "#009688";
+      NGIcons[i] = Icon("favorite");
+      selectedNGs.add(i);
+    } else {
+      NGColors[i] = "black";
+      NGIcons[i] = Icon("favorite_border");
     }
   }
 
@@ -102,8 +116,6 @@ class CoreService {
     isLoading = true;
     iteration++;
 
-    selectedNGs.add(0);
-
     String evolutionSpecifications =
         evolutionService.createEvolutionSpecifications(
             evolutionChips, selectedCanvases, selectedNGs, advancedMode);
@@ -127,7 +139,9 @@ class CoreService {
     selectedCanvases.clear();
     selectedNGs.clear();
     selectedColors.fillRange(0, 9, "black");
+    NGColors.fillRange(0, 9, "black");
     selectedIcons.fillRange(0, 9, Icon("favorite_border"));
+    NGIcons.fillRange(0, 9, Icon("favorite_border"));
 
     unawaited(
         evolutionService.initEvolutions(evolutionChips, canvasEvolutions));

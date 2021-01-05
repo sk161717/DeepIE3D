@@ -13,37 +13,43 @@ from sklearn.cluster import KMeans
 
 # Constants
 FOREIGN = 2
+ELITE=3
 Z_SIZE = 200
 
 class Evolution():
     def __init__(self):
         self.past_graphs=[]
         self.past_select=[]
+        self.NG_graphs=[]
 
 
-    def WL_evolution(self,selected_canvases, zs,G, novelty=False, behavioral=False, mutation_rate=1.0):
-        if len(selected_canvases)==0:
+    def WL_evolution(self,selected_canvases,NG_canvases, zs,G, novelty=False, behavioral=False, mutation_rate=1.0):
+        if len(selected_canvases)==0 and len(NG_canvases)==0:
             return simple_evolution(selected_canvases, zs,G)
         selected_zs,candidate_zs = [], []
-        selected_voxels,proposed_voxels,candiate_voxels=[],[],[]
+        selected_voxels,candiate_voxels,NG_voxels=[],[],[]
+        print('NGcanvas:',NG_canvases)
 
         for i in range(9):
-            #proposed_voxels.append(G.generate(torch.Tensor(zs[i]), cfg.model))
             if i in selected_canvases:
                 self.past_select.append(1)
                 selected_zs.append(zs[i])
                 selected_voxels.append(G.generate(torch.Tensor(zs[i]), cfg.model))
             else:
                 self.past_select.append(0)
+            if i in NG_canvases:
+                NG_voxels.append(G.generate(torch.Tensor(zs[i]),cfg.model))
         
         generate_candidate(selected_zs,candidate_zs,candiate_voxels,mutation_rate,G)
     
         selected_graphs=cluster_graph(selected_voxels)
         candidate_graphs=cluster_graph(candiate_voxels)
+        NG_graphs=cluster_graph(NG_voxels)
         
         #self.past_graphs+=selected_graphs
+        self.NG_graphs+=NG_graphs
         #G=candidate_graphs+self.past_graphs
-        G=candidate_graphs+selected_graphs
+        G=candidate_graphs+selected_graphs+NG_graphs
 
         G_grakel=grakel.graph_from_networkx(G, node_labels_tag='label')
         gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
@@ -51,18 +57,26 @@ class Evolution():
         print(K)
 
         evolved_zs=[]
-        fitnesses=self.predict_fitness2(K)
+        fitnesses,banned=self.predict_fitness2(K,len(selected_zs))
         tuple_list=list(enumerate(fitnesses))
         sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
         print(sort_tuple)
 
-        for i in range(9-FOREIGN):
+        for i in range(ELITE):
             evolved_zs.append(candidate_zs[sort_tuple[i][0]])
-
+        next_index=ELITE
+        while len(evolved_zs)<(9-FOREIGN):
+            if sort_tuple[next_index][0] in banned:
+                next_index+=1
+                continue
+            else:
+                evolved_zs.append(candidate_zs[sort_tuple[i][0]])
+                next_index+=1
+        
         evolved_zs.extend([normal().tolist() for _ in range(FOREIGN)])
         
-        for i in range(len(candiate_voxels)):
-            make_binvox(candiate_voxels[sort_tuple[i][0]],str(i)+'th good')
+        #for i in range(len(candiate_voxels)):
+        #    make_binvox(candiate_voxels[sort_tuple[i][0]],str(i)+'th good')
         return evolved_zs
 
     def predict_fitness(self,K):
@@ -80,15 +94,22 @@ class Evolution():
             fitnesses.append(fitness)
         return fitnesses
 
-    def predict_fitness2(self,K):
-        fitnesses=[]
+    def predict_fitness2(self,K,selected_length):
+        fitnesses=[] #fitnesses=[amax(K[0][selected]),amax(K[1][selected]),..]
+        banned_indices=[]
         for i in range(cfg.candidate):
-            similarity_array=K[i][cfg.candidate:]
+            similarity_array=K[i][cfg.candidate:cfg.candidate+selected_length]
             fitness=0
             n=len(similarity_array)
             fitnesses.append(np.amax(similarity_array))
             print('n:',n,' sim_array:',similarity_array)
-        return fitnesses
+        for i in range(cfg.candidate+selected_length,len(K[0])): #K[i]=[candidate,selected,NG]
+            candidate_array=K[i][:cfg.candidate]
+            print("candidate_array:",candidate_array)
+            if np.amax(candidate_array)>cfg.NG_border and (np.argmax(candidate_array) in banned_indices) == False:
+                banned_indices.append(np.argmax(candidate_array))
+        print("banned:",banned_indices)
+        return fitnesses,banned_indices
     
 def generate_candidate(selected_zs,candidate_zs,candidate_voxels,mutation_rate,G):
     if len(selected_zs)>=2 :
@@ -109,14 +130,19 @@ def generate_candidate(selected_zs,candidate_zs,candidate_voxels,mutation_rate,G
 
 
 
-def cluster_graph(voxels):
+def cluster_graph(voxels,std_num=None,num_clusters=None,k=None,epsilon=None):
+    if std_num==None:
+        std_num=cfg.std_num
+    if num_clusters==None:
+        num_clusters=cfg.num_clusters
     graphs=[]
     for i in range(len(voxels)):
         nonzero=torch.nonzero(voxels[i]>=0.5)
         count=torch.count_nonzero(nonzero)
         index=nonzero.to('cpu').detach().numpy()
-        num_clusters=int(cfg.num_clusters*math.sqrt(count/cfg.std_num))
-        km = KMeans(n_clusters=num_clusters,
+        num_clusters_=int(num_clusters*math.sqrt(count/std_num))
+        print("num_clusters:",num_clusters_)
+        km = KMeans(n_clusters=num_clusters_,
             init='random',
             n_init=2,
             max_iter=10,
@@ -125,7 +151,7 @@ def cluster_graph(voxels):
             )
         km.fit_predict(index)
         cluster_centers=km.cluster_centers_
-        graph=convert_sparse_to_graph(cluster_centers,np.array(cfg.center))
+        graph=convert_sparse_to_graph(cluster_centers,np.array(cfg.center),k,epsilon)
         graphs.append(graph)
     return graphs
         
@@ -135,6 +161,24 @@ def make_binvox(data,filename):
     voxels=binvox_rw.Voxels(dense_data,[64,64,64], [0,0,0], 1, 'xyz')
     voxels.write('../DeepIE3D_Backend/made/'+filename+cfg.model+'.binvox')
 
+def custom_evolve(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
+    selected_zs, evolved_zs = [], []
+
+    for i in selected_canvases:
+        selected_zs.append(zs[i])
+    
+    if len(selected_canvases)==0:
+        return [normal().tolist() for _ in range(9)]
+    elif len(selected_canvases)==1:
+        evolved_zs.append(selected_zs[0])
+        evolved_zs.extend([crossover_with_random(selected_zs[0]) for _ in range(6)])
+        evolved_zs.extend([x for x in mirror_crossover_with_random(selected_zs[0])])
+    elif len(selected_canvases)==2:
+        evolved_zs.extend(selected_zs)
+        evolved_zs.extend([x for x in mirror_crossover(selected_zs[0],selected_zs[1])])
+        evolved_zs.extend([mutate(selected_zs[0], mutation_rate)
+                    for i in range(6)])
+    return evolved_zs
 def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
     '''
     1:1 implementation of DeepIE if not [novelty], else DeepIE with added novelty search

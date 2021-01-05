@@ -24,6 +24,11 @@
           <material-icon [icon]="coreService.selectedIcons[i]" [style.color]="coreService.selectedColors[i]">
           </material-icon>
         </material-button>
+        <material-button icon (trigger)="coreService.toggleNGs(i)" *ngIf="!coreService.advancedMode"
+          title="Use model in evolution">
+          <material-icon [icon]="coreService.NGIcons[i]" [style.color]="coreService.NGColors[i]">
+          </material-icon>
+        </material-button>
         <popup-menu *ngIf="coreService.advancedMode" [menuGroup]="crossoverMenus[i]" title="Crossover model">
         </popup-menu>
         <material-button *ngIf="coreService.advancedMode" icon (trigger)="mutate(i)" title="Mutate model">
