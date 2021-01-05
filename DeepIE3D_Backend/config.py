@@ -11,7 +11,7 @@ load_start=1
 load_end=5
 std_num=5000
 k=0.5
-candidate=10
+candidate=13
 isTuning=True
 NG_border=0.75
 
