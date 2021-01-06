@@ -12,7 +12,7 @@ from operator import itemgetter
 from sklearn.cluster import KMeans
 
 # Constants
-FOREIGN = 1
+FOREIGN = 0
 ELITE=3
 PROPOSE=9
 Z_SIZE = 200
@@ -31,6 +31,7 @@ class Evolution():
         selected_zs,candidate_zs = [], []
         selected_voxels,candiate_voxels,NG_voxels=[],[],[]
         print('NGcanvas:',NG_canvases)
+        print('selectedCanvas:',selected_canvases)
 
         for i in range(PROPOSE):
             if i in selected_canvases:
@@ -39,7 +40,7 @@ class Evolution():
             if i in NG_canvases:
                 NG_voxels.append(G.generate(torch.Tensor(zs[i]),cfg.model))
         
-        self.generate_candidate(selected_canvases,selected_zs,candidate_zs,candiate_voxels,mutation_rate,G)
+        self.generate_candidate(selected_canvases,zs,selected_zs,candidate_zs,candiate_voxels,mutation_rate,G)
     
         selected_graphs=cluster_graph(selected_voxels)
         candidate_graphs=cluster_graph(candiate_voxels)
@@ -52,78 +53,58 @@ class Evolution():
         gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
         K,base_kernel=gk.fit_transform(G_grakel)
         print(K)
+        process_base_kernel(base_kernel)
 
         evolved_zs=[]
-        fitnesses,banned=self.predict_fitness(K,len(selected_zs),selected_canvases)
-        tuple_list=list(enumerate(fitnesses))
+        ordered_index=self.predict_fitness(K,len(selected_zs))
         
-        if len(selected_canvases)!=0:
-            sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
-            print(sort_tuple)
-            for i in range(ELITE):
-                evolved_zs.append(candidate_zs[sort_tuple[i][0]])
-            next_index=ELITE
-            while len(evolved_zs)<(9-FOREIGN):
-                if sort_tuple[next_index][0] in banned:
-                    next_index+=1
-                    continue
-                else:
-                    evolved_zs.append(candidate_zs[sort_tuple[next_index][0]])
-                    next_index+=1
-        else:
-            sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=False)
-            print(sort_tuple)
-            for i in range(PROPOSE-FOREIGN):
-                evolved_zs.append(candidate_zs[sort_tuple[i][0]])
+        evolved_zs.extend(candidate_zs[i] for i in ordered_index[:PROPOSE-FOREIGN])
         evolved_zs.extend([normal().tolist() for _ in range(FOREIGN)])
-
         
         #for i in range(len(candiate_voxels)):
         #    make_binvox(candiate_voxels[sort_tuple[i][0]],str(i)+'th good')
         self.past_graphs=selected_graphs
         return evolved_zs
 
-    def predict_fitness(self,K,selected_length,selected_canvases):
+    def predict_fitness(self,K,selected_length):
         fitnesses=[] #fitnesses=[amax(K[0][selected]),amax(K[1][selected]),..]
-        ordered_index=[]
-        banned_indices=[]
-        if len(selected_canvases)!=0:
-            if len(selected_canvases)>=2:
-                for i in range(cfg.candidate):
-                    similarity_array=K[i][cfg.candidate:cfg.candidate+selected_length]  
-                    n=len(similarity_array)
-                    fitnesses.append(np.var(similarity_array))
-                    print('n:',n,' sim_array:',similarity_array)
-                tuple_list=list(enumerate(fitnesses))
-                sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=False)
-                ordered_index=[sort_tuple[i][0] for i in range(PROPOSE-FOREIGN)]
-            elif len(selected_canvases)==1:
-                for i in range(cfg.candidate):
-                    similarity_array=K[i][cfg.candidate:cfg.candidate+selected_length]  
-                    n=len(similarity_array)
-                    fitnesses.append(np.amax(similarity_array))
-                    print('n:',n,' sim_array:',similarity_array)
-                tuple_list=list(enumerate(fitnesses))
-                sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
-                ordered_index=[sort_tuple[i][0] for i in range(PROPOSE-FOREIGN)]
-            for i in range(cfg.candidate+selected_length+len(self.past_graphs),len(K[0])): #K[i]=[candidate,selected,NG]
-                candidate_array=K[i][:cfg.candidate]
-                print("candidate_array:",candidate_array)
-                if np.amax(candidate_array)>cfg.NG_border and (np.argmax(candidate_array) in banned_indices) == False:
-                    banned_indices.append(np.argmax(candidate_array))
-            print("banned:",banned_indices)
-            return ordered_index,banned_indices
-        else:
+        if selected_length>=2:
             for i in range(cfg.candidate):
-                similarity_array=K[i][cfg.candidate+selected_length+len(self.past_graphs):]
+                similarity_array=K[i][cfg.candidate:cfg.candidate+selected_length]  
+                n=len(similarity_array)
+                fitnesses.append(np.average(similarity_array))
+                print('n:',n,' sim_array:',similarity_array)
+            tuple_list=list(enumerate(fitnesses))
+            sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
+            print('sorted:',sort_tuple)
+            ordered_index=[sort_tuple[i][0] for i in range(PROPOSE-FOREIGN)]
+            return ordered_index
+        elif selected_length==1:
+            for i in range(cfg.candidate):
+                similarity_array=K[i][cfg.candidate:cfg.candidate+selected_length]  
                 n=len(similarity_array)
                 fitnesses.append(np.amax(similarity_array))
                 print('n:',n,' sim_array:',similarity_array)
-            return fitnesses,None
+            tuple_list=list(enumerate(fitnesses))
+            sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
+            print('sorted:',sort_tuple)
+            ordered_index=[sort_tuple[i][0] for i in range(PROPOSE-FOREIGN)]
+            return ordered_index
+        else:
+            ordered_index=[]
+            for i in range(cfg.candidate):
+                similarity_array=K[i][cfg.candidate+selected_length+len(self.past_graphs):]
+                n=len(similarity_array)
+                if np.amax(similarity_array)<cfg.NG_border:
+                    ordered_index.append(i)
+                print('n:',n,' sim_array:',similarity_array)
+            random.shuffle(ordered_index)
+            print("ordered:",ordered_index)
+            return ordered_index
     
-    def generate_candidate(self,selected_canvases,selected_zs,candidate_zs,candidate_voxels,mutation_rate,G):
+    def generate_candidate(self,selected_canvases,zs,selected_zs,candidate_zs,candidate_voxels,mutation_rate,G):
         if len(selected_zs)>=2 :
-            candidate_zs.append(selected_zs[0])
+            candidate_zs.append(zs[selected_canvases[0]])
             while len(candidate_zs)<cfg.candidate:
                 if cfg.candidate-len(candidate_zs)==1:
                     candidate_zs.append(mutate(simple_crossover(selected_zs),mutation_rate))
@@ -137,6 +118,10 @@ class Evolution():
         candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(cfg.candidate)])
         return
 
+def process_base_kernel(base_kernel):
+    for i in range(len(base_kernel)):
+        print('shape',base_kernel[i].X.shape)
+        print(np.dot(base_kernel[i].X,base_kernel[i].X.T))
 
 
 def cluster_graph(voxels,std_num=None,num_clusters=None,k=None,epsilon=None):
