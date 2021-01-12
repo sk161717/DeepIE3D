@@ -133,7 +133,7 @@ def d_train(d_model, g_model, d_optim, loss_function, batch, writer, args):
 
     if not args.unpac:
         X = torch.cat(torch.split(batch, args.batch_size //
-                                  2, dim=0), 1).view(-1, 2, args.cube_len, args.cube_len, args.cube_len).to(args.device)
+                                  2, dim=0), 1).view(-1, 2, args.cube_len, args.cube_len, args.cube_len).to(args.device) 
     else:
         X = batch.view(-1, 1, args.cube_len, args.cube_len,
                        args.cube_len).to(args.device)
@@ -169,7 +169,7 @@ def d_train(d_model, g_model, d_optim, loss_function, batch, writer, args):
         else:
             grad_pen = 0.0
 
-        d_loss = (d_fake_loss + d_real_loss) + grad_pen
+        d_loss = (d_fake_loss + d_real_loss) + grad_pen #L=E(x~Pg)[D(x)]-E(x~Pr)[D(x)]+gp
 
         if args.gan_type in ['wgan_gp']:
             writer.add_scalar('grad_pen', grad_pen, args.current_iteration)
@@ -184,10 +184,14 @@ def d_train(d_model, g_model, d_optim, loss_function, batch, writer, args):
         writer.add_scalar('d_fake_loss', d_fake_loss, args.current_iteration)
         writer.add_scalar('d_total_loss', d_fake_loss, args.current_iteration)
 
+        #print("d_fake_loss",-d_fake_loss)
+
         if not (args.gan_type in ['dcgan'] and d_total_acc > args.d_high_thresh):
+            
             d_optim.zero_grad()
             d_loss.backward()
             d_optim.step()
+            
 
         summarize_grad(d_model, writer, args.current_iteration, 'd')
         it += 1
@@ -219,7 +223,7 @@ def g_train(g_model, d_model, g_optim, loss_function, real_labels, writer, args,
     g_optim.step()
     summarize_grad(g_model, writer, git, 'g')
 
-    return g_loss
+    return g_loss     #L=-E(x~Pg)[D(x)]
 
 
 def save_model(model_path, d_save_path, g_save_path, d_model, g_model, d_optim, g_optim, args):

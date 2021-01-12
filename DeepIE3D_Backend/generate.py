@@ -30,19 +30,18 @@ class SuperGenerator():
         with set_grad_enabled(False):
             return self.g_plane(z).view(64, 64, 64) if model_type == 'Plane' else self.g_chair(z).view(64, 64, 64)
 
-''' 
+
 class SuperDiscriminator():
     def __init__(self):
         self.d_chair = self.initialize_model().eval()
     
     def initialize_model(self):
-        d = Discriminator(True, 64, 0.3, 'wgan-gp')
+        d = Discriminator(False, 64, 0.3, 'wgan-gp')
         d_model = DataParallel(d)
-        d_checkpoint = load('chair_discriminator.tar', map_location=DEVICE)
-        d_model.load_state_dict(d_checkpoint["model_state_dict"])
+        d_checkpoint = load('chair_d.tar', map_location=DEVICE)
+        d_model.load_state_dict(d_checkpoint["model_state_dict"],strict=False)
         return d_model
     
     def discriminate(self, fake):
         with set_grad_enabled(False):
             return self.d_chair(fake)
-'''

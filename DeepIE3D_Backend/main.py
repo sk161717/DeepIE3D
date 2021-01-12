@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_file
 from flask_compress import Compress
 from torch import Tensor
-from generate import SuperGenerator
+from generate import SuperGenerator,SuperDiscriminator
 from utils import generate_z, create_coords_from_voxels,create_coords_from_voxels_generate, generate_binvox_file, calculate_camera
 from evolution import mutate, crossover, simple_evolution, behavioral_novelty_search, novelty_search,Evolution,custom_evolve
 
@@ -11,6 +11,7 @@ COMPRESS = Compress()
 BEHAVIORAL = False
 APP = Flask(__name__)
 G = SuperGenerator()
+D=SuperDiscriminator()
 EVO=Evolution()
 CAMERA_PLANE = calculate_camera(
     [G.generate(generate_z(), 'Plane') for i in range(100)])
@@ -122,9 +123,9 @@ def evolve():
         for i in range(int(evolution_specifications[7])):
             NG_canvases.append(request_json[f'NG{i}'])
         zs = [request_json[f'z{i}'] for i in range(9)]  #長さ200
-        evolved = EVO.WL_evolution(
-            selected_canvases, NG_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
-        #evolved=simple_evolution(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
+        #evolved = EVO.WL_evolution(
+            #selected_canvases, NG_canvases, zs, G,D, novelty, BEHAVIORAL, mutation_rate)
+        evolved=simple_evolution(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
         #evolved=custom_evolve(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
     else:
         evolution_specifications = evolution_specifications.split(',')

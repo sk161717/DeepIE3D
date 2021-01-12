@@ -16,17 +16,17 @@ class Argparser:
         """
         arg_parser = argparse.ArgumentParser()
 
-        arg_parser.add_argument('--gan_type', type=str, default="dcgan",
+        arg_parser.add_argument('--gan_type', type=str, default="wgan-gp",
                                 choices=["dcgan", "wgan-gp"], help='type of gan to train')
         arg_parser.add_argument(
-            '--unpac', action='store_true',default=True, help='toggle PacGAN(2)')
+            '--unpac', action='store_true', help='toggle PacGAN(2)')
         arg_parser.add_argument('--epochs', type=int, default=10000,
                                 help='number of epochs to train')
         arg_parser.add_argument('--d_iter', type=int, default=5,
                                 help='number of iteration to train discriminator')
-        arg_parser.add_argument('--d_low_thresh', type=float, default=0.80,
+        arg_parser.add_argument('--d_low_thresh', type=float, default=0.70,
                                 help='keep on training DCGAN discriminator if below this threshold')
-        arg_parser.add_argument('--d_high_thresh', type=float, default=0.99,
+        arg_parser.add_argument('--d_high_thresh', type=float, default=0.85,
                                 help='do not traing DCGAN discriminator if above this threshold')
         arg_parser.add_argument('--current_epoch', type=int, default=0,
                                 help='current epoch training/epoch to start with')
@@ -53,20 +53,20 @@ class Argparser:
                                 help='cube length of voxels')
         arg_parser.add_argument('--d_thresh', type=float, default=0.8,
                                 help='discriminator accuracy threshold')
-        arg_parser.add_argument('--obj', type=str, default="bench",
+        arg_parser.add_argument('--obj', type=str, default="chair",
                                 help='training dataset object category')
         arg_parser.add_argument('--labels', type=str, default="noisy",
                                 choices=["noisy", "hard", "d_hard"],
                                 help='choose label type (noisy, hard, d-hard)')
         arg_parser.add_argument('--input_dir', type=str, default='data',
                                 help='input path')
-        arg_parser.add_argument('--models_path', type=str, default='models_dcgan_bench',
+        arg_parser.add_argument('--models_path', type=str, default='models_wgan_pac_chair',
                                 help='path in which to save the models')
-        arg_parser.add_argument('--test_path', type=str, default='bench_g.tar',
+        arg_parser.add_argument('--test_path', type=str, default='chair_g.tar',
                                 help='path in which to fetch the test model')
-        arg_parser.add_argument('--data_dir', type=str, default='bench64_256',
+        arg_parser.add_argument('--data_dir', type=str, default='chair64_512',
                                 help='dataset load path')
-        arg_parser.add_argument('--save_freq', type=int, default=500,
+        arg_parser.add_argument('--save_freq', type=int, default=1000,
                                 help='To save model for every n steps')
         arg_parser.add_argument('--device', type=str,
                                 default="cuda" if torch.cuda.is_available() else "cpu",

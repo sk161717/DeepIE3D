@@ -23,7 +23,7 @@ class Evolution():
         self.NG_graphs=[]
 
 
-    def WL_evolution(self,selected_canvases,NG_canvases, zs,G, novelty=False, behavioral=False, mutation_rate=1.0):
+    def WL_evolution(self,selected_canvases,NG_canvases, zs,G,D, novelty=False, behavioral=False, mutation_rate=1.0):
         if len(selected_canvases)==0 and len(NG_canvases)==0:
             return simple_evolution(selected_canvases, zs,G)
 
@@ -47,13 +47,14 @@ class Evolution():
         NG_graphs=cluster_graph(NG_voxels)
         
         self.NG_graphs+=NG_graphs
-        G=candidate_graphs+selected_graphs+self.past_graphs+self.NG_graphs   #next gen,past gen, before past generation,NG
+        graphs=candidate_graphs+selected_graphs+self.past_graphs+self.NG_graphs   #next gen,past gen, before past generation,NG
 
-        G_grakel=grakel.graph_from_networkx(G, node_labels_tag='label')
+        G_grakel=grakel.graph_from_networkx(graphs, node_labels_tag='label')
         gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
         K,base_kernel=gk.fit_transform(G_grakel)
         print(K)
-        process_base_kernel(base_kernel)
+        #process_discriminate(candidate_zs,G,D)
+        #process_base_kernel(base_kernel)
 
         evolved_zs=[]
         ordered_index=self.predict_fitness(K,len(selected_zs))
@@ -117,6 +118,12 @@ class Evolution():
             candidate_zs.extend([normal().tolist() for _ in range(cfg.candidate)])
         candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(cfg.candidate)])
         return
+
+def process_discriminate(candidate_zs,G,D):
+    for i in range(len(candidate_zs)):
+        fake = G.g_chair(Tensor(candidate_zs[i]))
+        #concatenated=torch.cat((fake,fake),1).to('cpu')
+        #print("discriminator:",D.discriminate(concatenated))
 
 def process_base_kernel(base_kernel):
     for i in range(len(base_kernel)):
