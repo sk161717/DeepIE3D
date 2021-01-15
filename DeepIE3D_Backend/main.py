@@ -123,9 +123,9 @@ def evolve():
         for i in range(int(evolution_specifications[7])):
             NG_canvases.append(request_json[f'NG{i}'])
         zs = [request_json[f'z{i}'] for i in range(9)]  #長さ200
-        #evolved = EVO.WL_evolution(
-            #selected_canvases, NG_canvases, zs, G,D, novelty, BEHAVIORAL, mutation_rate)
-        evolved=simple_evolution(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
+        evolved = EVO.WL_evolution(
+            selected_canvases, NG_canvases, zs, G,D, novelty, BEHAVIORAL, mutation_rate)
+        #evolved=simple_evolution(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
         #evolved=custom_evolve(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
     else:
         evolution_specifications = evolution_specifications.split(',')

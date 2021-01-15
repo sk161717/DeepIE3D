@@ -15,6 +15,7 @@ from sklearn.cluster import KMeans
 FOREIGN = 0
 ELITE=3
 PROPOSE=9
+PAST=1
 Z_SIZE = 200
 
 class Evolution():
@@ -26,109 +27,155 @@ class Evolution():
     def WL_evolution(self,selected_canvases,NG_canvases, zs,G,D, novelty=False, behavioral=False, mutation_rate=1.0):
         if len(selected_canvases)==0 and len(NG_canvases)==0:
             return simple_evolution(selected_canvases, zs,G)
+        elif len(selected_canvases)==0:
+            candidate_zs = []
+            candiate_voxels,NG_voxels=[],[]
+            for i in range(PROPOSE):
+                if i in NG_canvases:
+                    NG_voxels.append(G.generate(torch.Tensor(zs[i]),cfg.model))
+            self.generate_candidate(selected_canvases,zs,None,candidate_zs,candiate_voxels,mutation_rate,G)
+            candidate_graphs=cluster_graph(candiate_voxels)   #軽量化
+            NG_graphs=cluster_graph(NG_voxels) 
 
+            self.NG_graphs+=NG_graphs
+            graphs=candidate_graphs+self.NG_graphs
 
-        selected_zs,candidate_zs = [], []
-        selected_voxels,candiate_voxels,NG_voxels=[],[],[]
-        print('NGcanvas:',NG_canvases)
-        print('selectedCanvas:',selected_canvases)
+            G_grakel=grakel.graph_from_networkx(graphs, node_labels_tag='label')
+            gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
+            K,_l=gk.fit_transform(G_grakel)
 
-        for i in range(PROPOSE):
-            if i in selected_canvases:
-                selected_zs.append(zs[i])
-                selected_voxels.append(G.generate(torch.Tensor(zs[i]), cfg.model))
-            if i in NG_canvases:
-                NG_voxels.append(G.generate(torch.Tensor(zs[i]),cfg.model))
-        
-        self.generate_candidate(selected_canvases,zs,selected_zs,candidate_zs,candiate_voxels,mutation_rate,G)
-    
-        selected_graphs=cluster_graph(selected_voxels)
-        candidate_graphs=cluster_graph(candiate_voxels)
-        NG_graphs=cluster_graph(NG_voxels)
-        
-        self.NG_graphs+=NG_graphs
-        graphs=candidate_graphs+selected_graphs+self.past_graphs+self.NG_graphs   #next gen,past gen, before past generation,NG
-
-        G_grakel=grakel.graph_from_networkx(graphs, node_labels_tag='label')
-        gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
-        K,base_kernel=gk.fit_transform(G_grakel)
-        print(K)
-        #process_discriminate(candidate_zs,G,D)
-        #process_base_kernel(base_kernel)
-
-        evolved_zs=[]
-        ordered_index=self.predict_fitness(K,len(selected_zs))
-        
-        evolved_zs.extend(candidate_zs[i] for i in ordered_index[:PROPOSE-FOREIGN])
-        evolved_zs.extend([normal().tolist() for _ in range(FOREIGN)])
-        
-        #for i in range(len(candiate_voxels)):
-        #    make_binvox(candiate_voxels[sort_tuple[i][0]],str(i)+'th good')
-        self.past_graphs=selected_graphs
-        return evolved_zs
-
-    def predict_fitness(self,K,selected_length):
-        fitnesses=[] #fitnesses=[amax(K[0][selected]),amax(K[1][selected]),..]
-        if selected_length>=2:
-            for i in range(cfg.candidate):
-                similarity_array=K[i][cfg.candidate:cfg.candidate+selected_length]  
-                n=len(similarity_array)
-                fitnesses.append(np.average(similarity_array))
-                print('n:',n,' sim_array:',similarity_array)
-            tuple_list=list(enumerate(fitnesses))
-            sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
-            print('sorted:',sort_tuple)
-            ordered_index=[sort_tuple[i][0] for i in range(PROPOSE-FOREIGN)]
-            return ordered_index
-        elif selected_length==1:
-            for i in range(cfg.candidate):
-                similarity_array=K[i][cfg.candidate:cfg.candidate+selected_length]  
-                n=len(similarity_array)
-                fitnesses.append(np.amax(similarity_array))
-                print('n:',n,' sim_array:',similarity_array)
-            tuple_list=list(enumerate(fitnesses))
-            sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
-            print('sorted:',sort_tuple)
-            ordered_index=[sort_tuple[i][0] for i in range(PROPOSE-FOREIGN)]
-            return ordered_index
+            ordered_index=judgeNG(K)
+            evolved_zs=[]
+            for i in range(PROPOSE):
+                evolved_zs.append(candidate_zs[ordered_index[i]])
+            return evolved_zs
         else:
-            ordered_index=[]
-            for i in range(cfg.candidate):
-                similarity_array=K[i][cfg.candidate+selected_length+len(self.past_graphs):]
-                n=len(similarity_array)
-                if np.amax(similarity_array)<cfg.NG_border:
-                    ordered_index.append(i)
-                print('n:',n,' sim_array:',similarity_array)
-            random.shuffle(ordered_index)
-            print("ordered:",ordered_index)
-            return ordered_index
+            selected_zs,candidate_zs = [], []
+            selected_voxels,candiate_voxels=[],[]
+            print('selectedCanvas:',selected_canvases)
+
+            for i in range(PROPOSE):
+                if i in selected_canvases:
+                    selected_zs.append(zs[i])
+                    selected_voxels.append(G.generate(torch.Tensor(zs[i]), cfg.model))
+            
+            self.generate_candidate(selected_canvases,zs,selected_zs,candidate_zs,candiate_voxels,mutation_rate,G)
+        
+            selected_graphs=cluster_graph(selected_voxels)
+            candidate_graphs=cluster_graph(candiate_voxels)
+                        
+            graphs=candidate_graphs+selected_graphs   #next gen,past gen, before past generation,NG
+
+            G_grakel=grakel.graph_from_networkx(graphs, node_labels_tag='label')
+            gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
+            K,_=gk.fit_transform(G_grakel)
+            print(K)
+            evolved_zs=[]
+            ordered_index=self.predict_fitness(K,len(selected_zs),mutation_rate)
+
+            evolved_zs.append(candidate_zs[0])
+            for i in range(PROPOSE-PAST):
+                evolved_zs.append(candidate_zs[ordered_index[i]])
+            
+            return evolved_zs
+
+    def predict_fitness(self,K,selected_length,mutation_rate=1.0):    
+        if selected_length>=2:
+            if mutation_rate>=0.5:
+                mutate_good_index=select_good(K,PAST,PAST+cfg.mutate_gen_2expl,PAST+cfg.candidate_2expl,cfg.mutate_select_2expl)
+                cross_good_index=select_good(K,PAST+cfg.mutate_gen_2expl,PAST+cfg.mutate_gen_2expl+cfg.cross_gen_2expl,PAST+cfg.candidate_2expl,cfg.cross_select_2expl)
+                randcross_good_index=select_good(K,PAST+cfg.mutate_gen_2expl+cfg.cross_gen_2expl,PAST+cfg.candidate_2expl,PAST+cfg.candidate_2expl,cfg.randcross_select_2expl)
+                cross_good_index.extend(randcross_good_index)
+                mutate_good_index.extend(cross_good_index)
+                print("2 expl result:",mutate_good_index)
+                return mutate_good_index
+            else:
+                mutate_good_index=select_good(K,PAST,PAST+cfg.mutate_gen_2conv,PAST+cfg.candidate_2conv,cfg.mutate_select_2conv)
+                cross_good_index=select_good(K,PAST+cfg.mutate_gen_2conv,PAST+cfg.mutate_gen_2conv+cfg.cross_gen_2conv,PAST+cfg.candidate_2conv,cfg.cross_select_2conv)
+                randcross_good_index=select_good(K,PAST+cfg.mutate_gen_2conv+cfg.cross_gen_2conv,PAST+cfg.candidate_2conv,PAST+cfg.candidate_2conv,cfg.randcross_select_2conv)
+                cross_good_index.extend(randcross_good_index)
+                mutate_good_index.extend(cross_good_index)
+                print("2 conv result:",mutate_good_index)
+                return mutate_good_index
+    
+        elif selected_length==1:
+            if mutation_rate>=0.5:
+                mutate_good_index=select_good(K,PAST, PAST+cfg.mutate_gen_1expl,PAST+cfg.candidate_1expl,cfg.mutate_select_1expl)
+                randcross_good_index=select_good(K,PAST+cfg.mutate_gen_1expl,PAST+cfg.candidate_1expl,PAST+cfg.candidate_1expl,cfg.randcross_select_1expl)
+                mutate_good_index.extend(randcross_good_index)
+                #print("mutate_good_index {} randcross_good_index {}".format(mutate_good_index,randcross_good_index))
+                print("1 expl result:",mutate_good_index)
+                return mutate_good_index
+            else:
+                mutate_good_index=select_good(K,PAST, PAST+cfg.mutate_gen_1conv,PAST+cfg.candidate_1conv,cfg.mutate_select_1conv)
+                randcross_good_index=select_good(K,PAST+cfg.mutate_gen_1conv,PAST+cfg.candidate_1conv,PAST+cfg.candidate_1conv,cfg.randcross_select_1conv)
+                mutate_good_index.extend(randcross_good_index)
+                print("1 conv result:",mutate_good_index)
+                return mutate_good_index
+
+            
     
     def generate_candidate(self,selected_canvases,zs,selected_zs,candidate_zs,candidate_voxels,mutation_rate,G):
-        if len(selected_zs)>=2 :
+        if len(selected_canvases)>=2 :
             candidate_zs.append(zs[selected_canvases[0]])
-            while len(candidate_zs)<cfg.candidate:
-                if cfg.candidate-len(candidate_zs)==1:
-                    candidate_zs.append(mutate(simple_crossover(selected_zs),mutation_rate))
-                else:
-                    candidate_zs.extend([mutate(x,mutation_rate) for x in mirror_simple_crossover(selected_zs)])
-        elif len(selected_zs)==1:
-            candidate_zs.append(selected_zs[0])
-            candidate_zs.extend([mutate(selected_zs[0], mutation_rate) for _ in range(cfg.candidate-1)])
+            if mutation_rate >= 0.5:
+                assert cfg.mutate_select_2expl+cfg.cross_select_2expl+cfg.randcross_select_2expl==PROPOSE-PAST,"invalid parameter 2 explore"
+                candidate_zs.extend([random_mutate(selected_zs, mutation_rate) for _ in range(cfg.mutate_gen_2expl)])
+                candidate_zs.extend([simple_crossover(selected_zs) for _ in range(cfg.cross_gen_2expl)])
+                candidate_zs.extend([random_crossover_with_random(selected_zs) for _ in range(cfg.randcross_gen_2expl)])
+                candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_2expl)])
+            else:
+                assert cfg.mutate_select_2conv+cfg.cross_select_2conv+cfg.randcross_select_2conv==PROPOSE-PAST,"invalid parameter 2 converge"
+                candidate_zs.extend([random_mutate(selected_zs, mutation_rate) for _ in range(cfg.mutate_gen_2conv)])
+                candidate_zs.extend([simple_crossover(selected_zs) for _ in range(cfg.cross_gen_2conv)])
+                candidate_zs.extend([random_crossover_with_random(selected_zs) for _ in range(cfg.randcross_gen_2conv)])
+                candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_2conv)])
+        elif len(selected_canvases)==1:
+            candidate_zs.append(zs[selected_canvases[0]])
+            if mutation_rate >=0.5:
+                assert cfg.mutate_select_1expl+cfg.randcross_select_1expl==PROPOSE-PAST,"invalid parameter 1 explore"
+                candidate_zs.extend([mutate(selected_zs[0], mutation_rate) for _ in range(cfg.mutate_gen_1expl)])
+                candidate_zs.extend([crossover_with_random(selected_zs[0]) for _ in range(cfg.randcross_gen_1expl)])
+                candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_1expl)])
+            else:
+                assert cfg.mutate_select_1conv+cfg.randcross_select_1conv==PROPOSE-PAST,"invalid parameter 1 converge"
+                candidate_zs.extend([mutate(selected_zs[0], mutation_rate) for _ in range(cfg.mutate_gen_1conv)])
+                candidate_zs.extend([crossover_with_random(selected_zs[0]) for _ in range(cfg.randcross_gen_1conv)])
+                candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_1conv)])
         else:
             candidate_zs.extend([normal().tolist() for _ in range(cfg.candidate)])
-        candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(cfg.candidate)])
+        
         return
 
-def process_discriminate(candidate_zs,G,D):
-    for i in range(len(candidate_zs)):
-        fake = G.g_chair(Tensor(candidate_zs[i]))
-        #concatenated=torch.cat((fake,fake),1).to('cpu')
-        #print("discriminator:",D.discriminate(concatenated))
+def select_good(K,candidate_start,candidate_end,all_candidate,selected_num):
+    print("candidate_start {},candidate_end {},all_candidate {},selected_num {}".format(candidate_start,candidate_end,all_candidate,selected_num))
+    fitnesses=[] #fitnesses=[amax(K[0][selected]),amax(K[1][selected]),..]
+    for i in range(candidate_start, candidate_end):
+        similarity_array=K[i][all_candidate:]  
+        n=len(similarity_array)
+        fitnesses.append(np.amax(similarity_array))
+        print('n:',n,' sim_array:',similarity_array)
+    tuple_list=list(enumerate(fitnesses))
+    sort_tuple=sorted(tuple_list,key=itemgetter(1),reverse=True)
+    print('sorted:',sort_tuple)
+    ordered_index=[sort_tuple[i][0] for i in range(selected_num)]
+    ordered_index=np.array(ordered_index)+candidate_start
+    print("ordered index:",ordered_index)
+    return ordered_index.tolist()
 
-def process_base_kernel(base_kernel):
-    for i in range(len(base_kernel)):
-        print('shape',base_kernel[i].X.shape)
-        print(np.dot(base_kernel[i].X,base_kernel[i].X.T))
+
+
+def judgeNG(K):
+    ordered_index=[]
+    for i in range(cfg.candidate):
+        similarity_array=K[i][cfg.candidate:]
+        n=len(similarity_array)
+        if np.amax(similarity_array)<cfg.NG_border:
+            ordered_index.append(i)
+        print('n:',n,' sim_array:',similarity_array)
+    random.shuffle(ordered_index)
+    print("ordered:",ordered_index)
+    return ordered_index[:PROPOSE]
 
 
 def cluster_graph(voxels,std_num=None,num_clusters=None,k=None,epsilon=None):
@@ -162,24 +209,7 @@ def make_binvox(data,filename):
     voxels=binvox_rw.Voxels(dense_data,[64,64,64], [0,0,0], 1, 'xyz')
     voxels.write('../DeepIE3D_Backend/made/'+filename+cfg.model+'.binvox')
 
-def custom_evolve(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
-    selected_zs, evolved_zs = [], []
 
-    for i in selected_canvases:
-        selected_zs.append(zs[i])
-    
-    if len(selected_canvases)==0:
-        return [normal().tolist() for _ in range(9)]
-    elif len(selected_canvases)==1:
-        evolved_zs.append(selected_zs[0])
-        evolved_zs.extend([crossover_with_random(selected_zs[0]) for _ in range(6)])
-        evolved_zs.extend([x for x in mirror_crossover_with_random(selected_zs[0])])
-    elif len(selected_canvases)==2:
-        evolved_zs.extend(selected_zs)
-        evolved_zs.extend([x for x in mirror_crossover(selected_zs[0],selected_zs[1])])
-        evolved_zs.extend([mutate(selected_zs[0], mutation_rate)
-                    for i in range(6)])
-    return evolved_zs
 def simple_evolution(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
     '''
     1:1 implementation of DeepIE if not [novelty], else DeepIE with added novelty search
@@ -233,6 +263,14 @@ def mirror_simple_crossover(population):
     a = population[random.randint(0, len(population)-1)]
     b = population[random.randint(0, len(population)-1)]
     return mirror_crossover(a,b)
+
+def random_mutate(population,mutation_rate=1.0):
+    rand=random.randint(0, len(population)-1)
+    return mutate(population[rand],mutation_rate)
+
+def random_crossover_with_random(population):
+    a = population[random.randint(0, len(population)-1)]
+    return crossover_with_random(a)
 
 
 def crossover(a, b):         #[-2.420189619064331, 1.28584885597229,....]
@@ -393,3 +431,35 @@ def get_sim(model, dataset):
             if voxels[x][y][z]:
                 same_voxel_count += 1
     return same_voxel_count/size/voxel_count*100
+
+def process_discriminate(candidate_zs,G,D):
+    for i in range(len(candidate_zs)):
+        fake = G.g_chair(Tensor(candidate_zs[i]))
+        #concatenated=torch.cat((fake,fake),1).to('cpu')
+        #print("discriminator:",D.discriminate(concatenated))
+
+def process_base_kernel(base_kernel):
+    for i in range(len(base_kernel)):
+        print('shape',base_kernel[i].X.shape)
+        print(np.dot(base_kernel[i].X,base_kernel[i].X.T))
+
+def custom_evolve(selected_canvases, zs, G, novelty=False, behavioral=False, mutation_rate=1.0):
+    selected_zs, evolved_zs = [], []
+
+    for i in selected_canvases:
+        selected_zs.append(zs[i])
+    
+    if len(selected_canvases)==0:
+        return [normal().tolist() for _ in range(9)]
+    elif len(selected_canvases)==1:
+        evolved_zs.append(selected_zs[0])
+        evolved_zs.extend([crossover_with_random(selected_zs[0]) for _ in range(6)])
+        evolved_zs.extend([x for x in mirror_crossover_with_random(selected_zs[0])])
+    elif len(selected_canvases)==2:
+        evolved_zs.extend(selected_zs)
+        evolved_zs.extend([x for x in mirror_crossover(selected_zs[0],selected_zs[1])])
+        evolved_zs.extend([mutate(selected_zs[0], mutation_rate)
+                    for i in range(6)])
+    return evolved_zs
+
+
