@@ -3,8 +3,8 @@ import math
 #cluster graph parameter
 model='Chair'
 #edge_threshold=4
-epsilon=1
-num_clusters=200
+epsilon=2
+num_clusters=50
 n_iter=5
 center=[0,0,0]
 load_start=1
