@@ -103,7 +103,7 @@ class Evolution():
                 mutate_good_index=select_good(K,PAST, PAST+cfg.mutate_gen_1expl,PAST+cfg.candidate_1expl,cfg.mutate_select_1expl)
                 randcross_good_index=select_good(K,PAST+cfg.mutate_gen_1expl,PAST+cfg.candidate_1expl,PAST+cfg.candidate_1expl,cfg.randcross_select_1expl)
                 mutate_good_index.extend(randcross_good_index)
-                #print("mutate_good_index {} randcross_good_index {}".format(mutate_good_index,randcross_good_index))
+                print("mutate_good_index {} randcross_good_index {}".format(mutate_good_index,randcross_good_index))
                 print("1 expl result:",mutate_good_index)
                 return mutate_good_index
             else:
