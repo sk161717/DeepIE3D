@@ -5,7 +5,7 @@ import torch
 import binvox_rw
 
 
-def generate_z(counter=0,z_size=200, dis='norm1',seed=None):
+def generate_z(z_size=200, dis='norm1',seed=None):
     """
     Generates a latent vector with a given distribution.
     Can be seeeded for test
