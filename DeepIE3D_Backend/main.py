@@ -4,6 +4,7 @@ from torch import Tensor
 from generate import SuperGenerator,SuperDiscriminator
 from utils import generate_z, create_coords_from_voxels,create_coords_from_voxels_generate, generate_binvox_file, calculate_camera
 from evolution import mutate, crossover, simple_evolution, behavioral_novelty_search, novelty_search,Evolution,custom_evolve
+from co_evolution import CoEvolution
 
 
 # Constants
@@ -13,6 +14,7 @@ APP = Flask(__name__)
 G = SuperGenerator()
 D=SuperDiscriminator()
 EVO=Evolution()
+COEVO=CoEvolution()
 CAMERA_PLANE = calculate_camera(
     [G.generate(generate_z(), 'Plane') for i in range(100)])
 CAMERA_CHAIR = calculate_camera(
@@ -49,11 +51,13 @@ def initialize_single():
     Respond with coords of nonzeros, Z vector and camera placement information
     '''
     model_type = request.get_json()['model_type']
+    index=int(request.get_json()['index'])
     body = {}
-    z = generate_z()
-    voxels = G.generate(z, model_type)
+    z = generate_z().tolist()
+    #z=COEVO.return_initial(index)
+    voxels = G.generate(Tensor(z), model_type)
     coords = create_coords_from_voxels_generate(voxels)
-    body['z'] = z.tolist()
+    body['z'] = z
     body['coords'] = coords
     body['camera'] = CAMERA_PLANE if model_type == 'Plane' else CAMERA_CHAIR
 
@@ -113,6 +117,7 @@ def evolve():
     evolution_specifications = request_json['specifications']
     novelty = request_json['novelty']
     mutation_rate = request_json['mutation']
+    mode = request_json['mode']
     
 
     if 'SIMPLE' in evolution_specifications:
@@ -123,10 +128,10 @@ def evolve():
         for i in range(int(evolution_specifications[7])):
             NG_canvases.append(request_json[f'NG{i}'])
         zs = [request_json[f'z{i}'] for i in range(9)]  #長さ200
-        evolved = EVO.WL_evolution(
-            selected_canvases, NG_canvases, zs, G,D, novelty, BEHAVIORAL, mutation_rate)
+        evolved = EVO.WL_evolution(selected_canvases, NG_canvases, zs, G,D,mode, novelty, BEHAVIORAL, mutation_rate)
         #evolved=simple_evolution(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
         #evolved=custom_evolve(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
+        #evolved=COEVO.evolution(selected_canvases,mutation_rate)
     else:
         evolution_specifications = evolution_specifications.split(',')
         for specification in evolution_specifications:

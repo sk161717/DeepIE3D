@@ -3,7 +3,9 @@ import torch
 import numpy as np
 import config as cfg
 import math
+import csv 
 import grakel
+import datetime
 import binvox_rw
 from utils import generate_z
 from torch import Tensor
@@ -20,11 +22,18 @@ Z_SIZE = 200
 
 class Evolution():
     def __init__(self):
-        self.past_graphs=[]
-        self.NG_graphs=[]
+        self.dt=str(datetime.datetime.now()).split('.')[0]
+        self.iteration=1
 
+    def WL_evolution(self,selected_canvases,NG_canvases, zs,G,D,mode, novelty=False, behavioral=False, mutation_rate=1.0):
+        self.iteration+=1        
+        with open("log/"+self.dt+'log.csv','a') as f:
+            writer=csv.writer(f)
+            writer.writerow([mode,str(len(NG_canvases))])
+        with open("log/"+self.dt+'itrlog.csv','w') as f:
+            writer=csv.writer(f)
+            writer.writerow([self.iteration])
 
-    def WL_evolution(self,selected_canvases,NG_canvases, zs,G,D, novelty=False, behavioral=False, mutation_rate=1.0):
         if len(selected_canvases)==0 and len(NG_canvases)==0:
             return simple_evolution(selected_canvases, zs,G)
         elif len(selected_canvases)==0:
@@ -33,16 +42,16 @@ class Evolution():
             for i in range(PROPOSE):
                 if i in NG_canvases:
                     NG_voxels.append(G.generate(torch.Tensor(zs[i]),cfg.model))
-            self.generate_candidate(selected_canvases,zs,None,candidate_zs,candiate_voxels,mutation_rate,G)
+            self.generate_candidate(selected_canvases,zs,None,candidate_zs,candiate_voxels,mutation_rate,G,mode)
             candidate_graphs=cluster_graph(candiate_voxels)   #軽量化
             NG_graphs=cluster_graph(NG_voxels) 
 
-            self.NG_graphs+=NG_graphs
-            graphs=candidate_graphs+self.NG_graphs
+            graphs=candidate_graphs
 
             G_grakel=grakel.graph_from_networkx(graphs, node_labels_tag='label')
             gk=grakel.WeisfeilerLehman(n_iter=cfg.n_iter,normalize=True)
-            K,_l=gk.fit_transform(G_grakel)
+            K,_=gk.fit_transform(G_grakel)
+            print(K)
 
             ordered_index=judgeNG(K)
             evolved_zs=[]
@@ -59,7 +68,7 @@ class Evolution():
                     selected_zs.append(zs[i])
                     selected_voxels.append(G.generate(torch.Tensor(zs[i]), cfg.model))
             
-            self.generate_candidate(selected_canvases,zs,selected_zs,candidate_zs,candiate_voxels,mutation_rate,G)
+            self.generate_candidate(selected_canvases,zs,selected_zs,candidate_zs,candiate_voxels,mutation_rate,G,mode)
         
             selected_graphs=cluster_graph(selected_voxels)
             candidate_graphs=cluster_graph(candiate_voxels)
@@ -71,7 +80,7 @@ class Evolution():
             K,_=gk.fit_transform(G_grakel)
             print(K)
             evolved_zs=[]
-            ordered_index=self.predict_fitness(K,len(selected_zs),mutation_rate)
+            ordered_index=self.predict_fitness(K,len(selected_zs),mutation_rate,mode)
 
             evolved_zs.append(candidate_zs[0])
             for i in range(PROPOSE-PAST):
@@ -79,9 +88,9 @@ class Evolution():
             
             return evolved_zs
 
-    def predict_fitness(self,K,selected_length,mutation_rate=1.0):    
+    def predict_fitness(self,K,selected_length,mutation_rate,mode):    
         if selected_length>=2:
-            if mutation_rate>=0.5:
+            if mode=='Explore':
                 mutate_good_index=select_good(K,PAST,PAST+cfg.mutate_gen_2expl,PAST+cfg.candidate_2expl,cfg.mutate_select_2expl)
                 cross_good_index=select_good(K,PAST+cfg.mutate_gen_2expl,PAST+cfg.mutate_gen_2expl+cfg.cross_gen_2expl,PAST+cfg.candidate_2expl,cfg.cross_select_2expl)
                 randcross_good_index=select_good(K,PAST+cfg.mutate_gen_2expl+cfg.cross_gen_2expl,PAST+cfg.candidate_2expl,PAST+cfg.candidate_2expl,cfg.randcross_select_2expl)
@@ -99,7 +108,7 @@ class Evolution():
                 return mutate_good_index
     
         elif selected_length==1:
-            if mutation_rate>=0.5:
+            if mode=='Explore':
                 mutate_good_index=select_good(K,PAST, PAST+cfg.mutate_gen_1expl,PAST+cfg.candidate_1expl,cfg.mutate_select_1expl)
                 randcross_good_index=select_good(K,PAST+cfg.mutate_gen_1expl,PAST+cfg.candidate_1expl,PAST+cfg.candidate_1expl,cfg.randcross_select_1expl)
                 mutate_good_index.extend(randcross_good_index)
@@ -115,7 +124,7 @@ class Evolution():
 
             
     
-    def generate_candidate(self,selected_canvases,zs,selected_zs,candidate_zs,candidate_voxels,mutation_rate,G):
+    def generate_candidate(self,selected_canvases,zs,selected_zs,candidate_zs,candidate_voxels,mutation_rate,G,mode):
         if len(selected_canvases)>=2 :
             candidate_zs.append(zs[selected_canvases[0]])
             if mutation_rate >= 0.5:
@@ -144,7 +153,7 @@ class Evolution():
                 candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_1conv)])
         else:
             candidate_zs.extend([normal().tolist() for _ in range(cfg.candidate)])
-        
+            candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(cfg.candidate)])
         return
 
 def select_good(K,candidate_start,candidate_end,all_candidate,selected_num):
@@ -168,13 +177,12 @@ def select_good(K,candidate_start,candidate_end,all_candidate,selected_num):
 def judgeNG(K):
     ordered_index=[]
     for i in range(cfg.candidate):
-        similarity_array=K[i][cfg.candidate:]
-        n=len(similarity_array)
-        if np.amax(similarity_array)<cfg.NG_border:
+        similarity_array=K[i]
+        if np.average(similarity_array)>cfg.NG_border:
             ordered_index.append(i)
-        print('n:',n,' sim_array:',similarity_array)
+        print('n:',len(similarity_array),' sim_array:',similarity_array)
     random.shuffle(ordered_index)
-    print("ordered:",ordered_index)
+    print('n:',len(ordered_index),"ordered:",ordered_index)
     return ordered_index[:PROPOSE]
 
 
@@ -420,7 +428,7 @@ def generate_models(G, n):
 
 def get_sim(model, dataset):
     '''
-    Returns similarity of a model compared to a dataset
+    Returns similarity of a model compared to a dataset 
     '''
     size = len(dataset)
     model = torch.nonzero(model)
@@ -461,5 +469,6 @@ def custom_evolve(selected_canvases, zs, G, novelty=False, behavioral=False, mut
         evolved_zs.extend([mutate(selected_zs[0], mutation_rate)
                     for i in range(6)])
     return evolved_zs
+
 
 

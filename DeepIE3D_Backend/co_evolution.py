@@ -7,11 +7,6 @@ import copy
 from utils import generate_z
 #配列で実装
 
-def main():
-    EVO=CoEvolution()
-    selected_canvases=[0,1]
-    EVO.evolution(selected_canvases)
-
 class CoEvolution():
     def __init__(self):     
         self.pm=0.05 
@@ -20,27 +15,40 @@ class CoEvolution():
         self.part_num=int(self.N/self.M)
         self.pop_size=9
         self.part_chrome_size=self.pop_size*self.N
-        self.population=[]                            #[[instanceID,ID ..],[],..]
+                                    #[[instanceID,ID ..],[],..]
 
+        self.initialize()
+    
+    def initialize(self):
+        self.population=[]
         self.part_chrome=[PartChrome(self.M) for _ in range(self.part_chrome_size)]
         for i in range(self.pop_size):
             self.population.append([])
             for j in range(self.part_num):
-                self.population[i].append(self.part_chrome[i*self.part_num+j])  
+                self.population[i].append(self.part_chrome[i*self.part_num+j])
+
+    def return_initial(self,index):
+        evolved_zs=[]
+        for j in range(self.part_num):
+                evolved_zs.extend(copy.deepcopy(self.population[index][j].chromosome))
+        return evolved_zs
 
     
     def evolution(self,selected_canvases, mutation_rate=1.0):
+        if len(selected_canvases)==0:
+            self.initialize()
+            return self.concat_population(self.population)
         self.refresh(selected_canvases)
         self.child_reproduct(selected_canvases,mutation_rate)
         new_population=self.parent_reproduct(selected_canvases)
         self.population=new_population
-        return self.concat(self.population)
+        return self.concat_population(self.population)
 
     def child_reproduct(self,selected_canvases,mutation_rate):
         for i in range(len(selected_canvases)):
             for j in range(self.part_num):
                 parent1=self.population[selected_canvases[i]][j]
-                parent2=self.population[selected_canvases[random.randint(0,len(selected_canvases))]][random.randint(0,self.part_num)]
+                parent2=self.population[selected_canvases[random.randrange(0,len(selected_canvases))]][random.randrange(0,self.part_num)]
                 child1,child2=self.child_crossover(parent1,parent2)
                 child1.mutate(mutation_rate)
                 child2.mutate(mutation_rate)
@@ -52,14 +60,16 @@ class CoEvolution():
     def parent_reproduct(self,selected_canvases):
         new_population=[]
         for i in range(self.pop_size):
-            parent1=self.population[selected_canvases[random.randint(0,len(selected_canvases))]]
-            parent2=self.population[selected_canvases[random.randint(0,len(selected_canvases))]]
+            parent1=self.population[selected_canvases[random.randrange(0,len(selected_canvases))]]
+            parent2=self.population[selected_canvases[random.randrange(0,len(selected_canvases))]]
             child1,child2=self.parent_crossover(parent1,parent2)
             self.parent_mutate(child1)
             self.parent_mutate(child2)
             new_population.append(child1)
             if len(new_population)<self.pop_size:
                 new_population.append(child2)
+            else:
+                break
         return new_population
 
 
@@ -71,10 +81,11 @@ class CoEvolution():
         for i in range(len(selected_canvases)):
             for j in range(self.part_num):
                 self.population[selected_canvases[i]][j].fitness+=1
+        
 
-    def concat(self,population):
+    def concat_population(self,population):
         evolved_zs=[]
-        for i in range(population):
+        for i in range(len(population)):
             evolved_zs.append([])
             for j in range(self.part_num):
                 evolved_zs[i].extend(copy.deepcopy(population[i][j].chromosome))
@@ -84,7 +95,7 @@ class CoEvolution():
     def child_crossover(self,parent1,parent2):       #一点交叉
         child1=PartChrome(self.M)
         child2=PartChrome(self.M)
-        cut=random.randint(0,self.M+1)
+        cut=random.randrange(0,self.M+1)
         for i in range(self.M):
             if i<cut:
                 child1.chromosome[i]=parent1.chromosome[i]
@@ -105,7 +116,7 @@ class CoEvolution():
 
     def child_replace(self,child):
         while(True):
-            index=random.randint(0,self.part_num)
+            index=random.randrange(0,self.part_chrome_size)
             candidate=self.part_chrome[index]
             if candidate.fitness==0:
                 self.part_chrome[index]=child
@@ -113,14 +124,14 @@ class CoEvolution():
                 break
 
     def parent_crossover(self,parent1,parent2):         #一点交叉
-        cut=random.randint(0,self.part_num+1)
+        cut=random.randrange(0,self.part_num+1)
         child1=[]
         for i in range(self.part_num):
             if i<cut:
                 child1.append(parent1[i])
             else:
                 child1.append(parent2[i])
-        if random.randint(0,2)==0:
+        if random.randrange(0,2)==0:
             return child1,parent1
         else:
             return child1,parent2
@@ -128,9 +139,9 @@ class CoEvolution():
     def parent_mutate(self,child):
         for i in range(self.part_num):
             if random.random()<self.pm:
-                child[i]=self.part_chrome[random.randint(0,self.part_chrome_size)]  #mutation1
-            if child[i].child1!=None and random.random<0.5:
-                if random.random<0.5:
+                child[i]=self.part_chrome[random.randrange(0,self.part_chrome_size)]  #mutation1
+            if child[i].child1!=None and random.random()<0.5:
+                if random.random()<0.5:
                     child[i]=child[i].child1                                        #mutation2
                 else:
                     child[i]=child[i].child2
@@ -177,4 +188,11 @@ class PartChrome():
         The Benoulli distribution
         '''
         return torch.Tensor(self.M).bernoulli_(0.5)  #tensor([1., 1., 1., 0., 0., 1., 1., 0., 1.,..... 0., 0., 0., 1., 1., 1., 0., 1., 0.,])
+
+if __name__ == '__main__':
+    EVO=CoEvolution()
+    for i in  range(3):
+        selected_canvases=[i for i in range(random.randrange(1,5))]
+        evolved_zs=EVO.evolution(selected_canvases)
+    print("OK")
 

@@ -12,7 +12,7 @@ load_end=5
 std_num=5000
 k=0.5
 candidate=30
-NG_border=0.72
+NG_border=0.63
 
 
 #selected 1 and explore
