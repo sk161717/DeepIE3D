@@ -95,6 +95,8 @@ class CoEvolution():
     def child_crossover(self,parent1,parent2):       #一点交叉
         child1=PartChrome(self.M)
         child2=PartChrome(self.M)
+        parentcopy1=PartChrome(self.M)
+        parentcopy2=PartChrome(self.M)
         cut=random.randrange(0,self.M+1)
         for i in range(self.M):
             if i<cut:
@@ -103,15 +105,17 @@ class CoEvolution():
             else:
                 child1.chromosome[i]=parent2.chromosome[i]
                 child2.chromosome[i]=parent1.chromosome[i]
+        parentcopy1.chromosome=copy.deepcopy(parent1.chromosome)
+        parentcopy2.chromosome=copy.deepcopy(parent2.chromosome)
         rand=random.random()
         if rand<0.25:
-            return parent1,child1
+            return parentcopy1,child1
         elif rand<0.5:
-            return parent1,child2
+            return parentcopy1,child2
         elif rand<0.75:
-            return parent2,child1
+            return parentcopy2,child1
         else:
-            return parent2,child2
+            return parentcopy2,child2
         
 
     def child_replace(self,child):
@@ -119,8 +123,11 @@ class CoEvolution():
             index=random.randrange(0,self.part_chrome_size)
             candidate=self.part_chrome[index]
             if candidate.fitness==0:
-                self.part_chrome[index]=child
-                child.fitness=-1
+                candidate.chromosome=copy.deepcopy(child.chromosome)
+                candidate.fitness=-1
+                child=candidate
+                #self.part_chrome[index]=child
+                #child.fitness=-1
                 break
 
     def parent_crossover(self,parent1,parent2):         #一点交叉
