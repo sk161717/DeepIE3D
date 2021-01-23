@@ -17,8 +17,8 @@ k=0.5
 candidate=30
 NG_border=0.63
 
-explore_mutation_rate=0.8
-converge_mutation_rate=0.3
+explore_mutation_rate=1.0
+converge_mutation_rate=0.4
 
 
 #selected 1 and explore

@@ -82,7 +82,7 @@ class Evolution():
             K,_=gk.fit_transform(G_grakel)
             print(K)
             evolved_zs=[]
-            ordered_index=self.predict_fitness(K,len(selected_zs),mode)
+            ordered_index=self.predict_fitness(K,len(selected_zs),mutation_rate,mode)
 
             evolved_zs.append(candidate_zs[0])
             for i in range(PROPOSE-PAST):
@@ -90,7 +90,7 @@ class Evolution():
             
             return evolved_zs
 
-    def predict_fitness(self,K,selected_length,mode):    
+    def predict_fitness(self,K,selected_length,mutation_rate,mode):    
         if selected_length>=2:
             if mode=='Explore':
                 mutate_good_index=select_good(K,PAST,PAST+cfg.mutate_gen_2expl,PAST+cfg.candidate_2expl,cfg.mutate_select_2expl)
@@ -131,13 +131,13 @@ class Evolution():
             candidate_zs.append(zs[selected_canvases[0]])
             if mode=='Explore':
                 assert cfg.mutate_select_2expl+cfg.cross_select_2expl+cfg.randcross_select_2expl==PROPOSE-PAST,"invalid parameter 2 explore"
-                candidate_zs.extend([random_mutate(selected_zs, cfg.explore_mutation_rate) for _ in range(cfg.mutate_gen_2expl)])
+                candidate_zs.extend([random_mutate(selected_zs, mutation_rate) for _ in range(cfg.mutate_gen_2expl)])
                 candidate_zs.extend([simple_crossover(selected_zs) for _ in range(cfg.cross_gen_2expl)])
                 candidate_zs.extend([random_crossover_with_random(selected_zs) for _ in range(cfg.randcross_gen_2expl)])
                 candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_2expl)])
             else:
                 assert cfg.mutate_select_2conv+cfg.cross_select_2conv+cfg.randcross_select_2conv==PROPOSE-PAST,"invalid parameter 2 converge"
-                candidate_zs.extend([random_mutate(selected_zs, cfg.converge_mutation_rate) for _ in range(cfg.mutate_gen_2conv)])
+                candidate_zs.extend([random_mutate(selected_zs, mutation_rate) for _ in range(cfg.mutate_gen_2conv)])
                 candidate_zs.extend([simple_crossover(selected_zs) for _ in range(cfg.cross_gen_2conv)])
                 candidate_zs.extend([random_crossover_with_random(selected_zs) for _ in range(cfg.randcross_gen_2conv)])
                 candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_2conv)])
@@ -145,12 +145,12 @@ class Evolution():
             candidate_zs.append(zs[selected_canvases[0]])
             if mode=='Explore':
                 assert cfg.mutate_select_1expl+cfg.randcross_select_1expl==PROPOSE-PAST,"invalid parameter 1 explore"
-                candidate_zs.extend([mutate(selected_zs[0], cfg.explore_mutation_rate) for _ in range(cfg.mutate_gen_1expl)])
+                candidate_zs.extend([mutate(selected_zs[0], mutation_rate) for _ in range(cfg.mutate_gen_1expl)])
                 candidate_zs.extend([crossover_with_random(selected_zs[0]) for _ in range(cfg.randcross_gen_1expl)])
                 candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_1expl)])
             else:
                 assert cfg.mutate_select_1conv+cfg.randcross_select_1conv==PROPOSE-PAST,"invalid parameter 1 converge"
-                candidate_zs.extend([mutate(selected_zs[0], cfg.converge_mutation_rate) for _ in range(cfg.mutate_gen_1conv)])
+                candidate_zs.extend([mutate(selected_zs[0], mutation_rate) for _ in range(cfg.mutate_gen_1conv)])
                 candidate_zs.extend([crossover_with_random(selected_zs[0]) for _ in range(cfg.randcross_gen_1conv)])
                 candidate_voxels.extend([G.generate(torch.Tensor(candidate_zs[i]),cfg.model) for i in range(PAST+cfg.candidate_1conv)])
         else:

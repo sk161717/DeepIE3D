@@ -55,9 +55,9 @@ def initialize_single():
     model_type = request.get_json()['model_type']
     index=int(request.get_json()['index'])
     body = {}
-    #z=INI.get_zs(index)
+    z=INI.get_zs(index)
     #z = generate_z().tolist()
-    z=COEVO.return_initial(index)
+    #z=COEVO.return_initial(index)
     voxels = G.generate(Tensor(z), model_type)
     coords = create_coords_from_voxels_generate(voxels)
     body['z'] = z
@@ -132,10 +132,10 @@ def evolve():
         for i in range(int(evolution_specifications[7])):
             NG_canvases.append(request_json[f'NG{i}'])
         zs = [request_json[f'z{i}'] for i in range(9)]  #長さ200
-        #evolved = EVO.WL_evolution(selected_canvases, NG_canvases, zs, G,D,mode, novelty, BEHAVIORAL, mutation_rate,False)
+        evolved = EVO.WL_evolution(selected_canvases, NG_canvases, zs, G,D,mode, novelty, BEHAVIORAL, mutation_rate,True)
         #evolved=simple_evolution(selected_canvases, NG_canvases,zs, G, novelty, BEHAVIORAL, mutation_rate)
         #evolved=custom_evolve(selected_canvases, zs, G, novelty, BEHAVIORAL, mutation_rate)
-        evolved=COEVO.evolution(selected_canvases,mutation_rate)
+        #evolved=COEVO.evolution(selected_canvases,mutation_rate)
     else:
         evolution_specifications = evolution_specifications.split(',')
         for specification in evolution_specifications:
